@@ -83,3 +83,27 @@ type AnsibleExecutionSession struct {
 	SessionName string    `json:"session_name" db:"session_name"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 }
+
+// SystemInfo 系统信息模型
+type SystemInfo struct {
+	IP           string    `json:"ip"`
+	Status       string    `json:"status"`
+	CPUUsage     float64   `json:"cpu_usage"`
+	MemoryUsage  float64   `json:"memory_usage"`
+	DiskUsage    float64   `json:"disk_usage"`
+	NetworkTx    string    `json:"network_tx"`
+	NetworkRx    string    `json:"network_rx"`
+	Ports        []string  `json:"ports"`
+	LastUpdated  time.Time `json:"last_updated"`
+}
+
+// ProcessInfo 进程信息模型
+type ProcessInfo struct {
+	PID         int     `json:"pid"`
+	Name        string  `json:"name"`
+	Command     string  `json:"command"`
+	CPUUsage    float64 `json:"cpu_usage"`
+	MemoryUsage float64 `json:"memory_usage"`
+	Port        string  `json:"port"`
+	Host        string  `json:"host"`
+}

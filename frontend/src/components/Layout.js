@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Server, FileText, Terminal, Settings, Package } from 'lucide-react';
+import { Server, FileText, Terminal, Settings, Package, Monitor } from 'lucide-react';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -10,6 +10,11 @@ const Layout = ({ children }) => {
       path: '/hostgroups',
       name: '主机组管理',
       icon: Server
+    },
+    {
+      path: '/monitoring',
+      name: '主机监控',
+      icon: Monitor
     },
     {
       path: '/ansible',

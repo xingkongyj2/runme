@@ -1,0 +1,260 @@
+import React, { useState, useEffect } from 'react';
+import { Monitor, Cpu, HardDrive, Wifi, Activity, Users } from 'lucide-react';
+import { hostGroupAPI, monitoringAPI } from '../services/api';
+
+const HostMonitoring = () => {
+  const [activeTab, setActiveTab] = useState('system');
+  const [hostGroups, setHostGroups] = useState([]);
+  const [activeGroupTab, setActiveGroupTab] = useState(0);
+  const [systemData, setSystemData] = useState({});
+  const [processData, setProcessData] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchHostGroups();
+  }, []);
+
+  useEffect(() => {
+    if (hostGroups.length > 0) {
+      fetchMonitoringData();
+      const interval = setInterval(fetchMonitoringData, 3000); // 每3秒更新一次
+      return () => clearInterval(interval);
+    }
+  }, [hostGroups, activeTab, activeGroupTab]);
+
+  const fetchHostGroups = async () => {
+    try {
+      const response = await hostGroupAPI.getAll();
+      setHostGroups(response.data.data || []);
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to fetch host groups:', error);
+      setLoading(false);
+    }
+  };
+
+  const fetchMonitoringData = async () => {
+    if (hostGroups.length === 0) return;
+    
+    const currentGroup = hostGroups[activeGroupTab];
+    if (!currentGroup) return;
+
+    try {
+      if (activeTab === 'system') {
+        const response = await monitoringAPI.getSystemInfo(currentGroup.id);
+        setSystemData(prev => ({ ...prev, [currentGroup.id]: response.data.data }));
+      } else {
+        const response = await monitoringAPI.getProcessInfo(currentGroup.id);
+        setProcessData(prev => ({ ...prev, [currentGroup.id]: response.data.data }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch monitoring data:', error);
+    }
+  };
+
+  const renderSystemCard = (host) => (
+    <div key={host.ip} className="bg-gray-900 rounded-lg p-6 border border-gray-800">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-white">{host.ip}</h3>
+        <div className={`w-3 h-3 rounded-full ${
+          host.status === 'online' ? 'bg-green-500' : 'bg-red-500'
+        }`}></div>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Cpu className="w-4 h-4 text-blue-400" />
+            <span className="text-sm text-gray-300">CPU</span>
+          </div>
+          <div className="w-full bg-gray-700 rounded-full h-2">
+            <div 
+              className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+              style={{ width: `${host.cpu_usage || 0}%` }}
+            ></div>
+          </div>
+          <span className="text-xs text-gray-400">{host.cpu_usage || 0}%</span>
+        </div>
+        
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-green-400" />
+            <span className="text-sm text-gray-300">内存</span>
+          </div>
+          <div className="w-full bg-gray-700 rounded-full h-2">
+            <div 
+              className="bg-green-500 h-2 rounded-full transition-all duration-300" 
+              style={{ width: `${host.memory_usage || 0}%` }}
+            ></div>
+          </div>
+          <span className="text-xs text-gray-400">{host.memory_usage || 0}%</span>
+        </div>
+        
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <HardDrive className="w-4 h-4 text-yellow-400" />
+            <span className="text-sm text-gray-300">磁盘</span>
+          </div>
+          <div className="w-full bg-gray-700 rounded-full h-2">
+            <div 
+              className="bg-yellow-500 h-2 rounded-full transition-all duration-300" 
+              style={{ width: `${host.disk_usage || 0}%` }}
+            ></div>
+          </div>
+          <span className="text-xs text-gray-400">{host.disk_usage || 0}%</span>
+        </div>
+        
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Wifi className="w-4 h-4 text-purple-400" />
+            <span className="text-sm text-gray-300">网络</span>
+          </div>
+          <div className="text-xs text-gray-400">
+            ↑ {host.network_tx || '0 KB/s'}<br/>
+            ↓ {host.network_rx || '0 KB/s'}
+          </div>
+        </div>
+      </div>
+      
+      {host.ports && host.ports.length > 0 && (
+        <div className="mt-4">
+          <span className="text-sm text-gray-300">开放端口:</span>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {host.ports.slice(0, 5).map(port => (
+              <span key={port} className="text-xs bg-gray-800 text-gray-300 px-2 py-1 rounded">
+                {port}
+              </span>
+            ))}
+            {host.ports.length > 5 && (
+              <span className="text-xs text-gray-500">+{host.ports.length - 5}</span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderProcessCard = (process) => (
+    <div key={process.pid} className="bg-gray-900 rounded-lg p-4 border border-gray-800">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-sm font-medium text-white truncate">{process.name}</h4>
+        <span className="text-xs text-gray-400">PID: {process.pid}</span>
+      </div>
+      
+      <div className="grid grid-cols-3 gap-3 text-xs">
+        <div>
+          <span className="text-gray-400">CPU:</span>
+          <div className="text-blue-400 font-medium">{process.cpu_usage}%</div>
+        </div>
+        <div>
+          <span className="text-gray-400">内存:</span>
+          <div className="text-green-400 font-medium">{process.memory_usage}%</div>
+        </div>
+        <div>
+          <span className="text-gray-400">端口:</span>
+          <div className="text-purple-400 font-medium">{process.port || 'N/A'}</div>
+        </div>
+      </div>
+      
+      <div className="mt-2 text-xs text-gray-500 truncate">
+        {process.command}
+      </div>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-white">加载中...</div>
+      </div>
+    );
+  }
+
+  const currentGroupData = activeTab === 'system' 
+    ? systemData[hostGroups[activeGroupTab]?.id] || []
+    : processData[hostGroups[activeGroupTab]?.id] || [];
+
+  return (
+    <div className="space-y-6">
+      {/* 页面标题 */}
+      <div className="flex items-center gap-3">
+        <Monitor className="w-8 h-8 text-blue-400" />
+        <h1 className="text-3xl font-bold text-white">主机监控</h1>
+      </div>
+
+      {/* 主要Tab页 */}
+      <div className="bg-gray-900 rounded-lg border border-gray-800">
+        <div className="border-b border-gray-800">
+          <nav className="flex space-x-8 px-6">
+            <button
+              onClick={() => setActiveTab('system')}
+              className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'system'
+                  ? 'border-blue-500 text-blue-400'
+                  : 'border-transparent text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              系统概览
+            </button>
+            <button
+              onClick={() => setActiveTab('process')}
+              className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'process'
+                  ? 'border-blue-500 text-blue-400'
+                  : 'border-transparent text-gray-400 hover:text-gray-300'
+              }`}
+            >
+              进程详情
+            </button>
+          </nav>
+        </div>
+
+        <div className="p-6">
+          {/* 主机组Tab页 */}
+          {hostGroups.length > 0 && (
+            <div className="mb-6">
+              <div className="border-b border-gray-800">
+                <nav className="flex space-x-6">
+                  {hostGroups.map((group, index) => (
+                    <button
+                      key={group.id}
+                      onClick={() => setActiveGroupTab(index)}
+                      className={`py-2 px-3 border-b-2 font-medium text-sm transition-colors ${
+                        activeGroupTab === index
+                          ? 'border-green-500 text-green-400'
+                          : 'border-transparent text-gray-400 hover:text-gray-300'
+                      }`}
+                    >
+                      {group.name}
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            </div>
+          )}
+
+          {/* 内容区域 */}
+          <div className="space-y-4">
+            {activeTab === 'system' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {currentGroupData.map(renderSystemCard)}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {currentGroupData.map(renderProcessCard)}
+              </div>
+            )}
+            
+            {currentGroupData.length === 0 && (
+              <div className="text-center py-12">
+                <div className="text-gray-400">暂无数据</div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default HostMonitoring;

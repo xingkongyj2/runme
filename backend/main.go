@@ -77,6 +77,13 @@ func main() {
 			ansible.GET("/:id/sessions", handlers.GetAnsibleExecutionSessions)
 			ansible.GET("/:id/logs", handlers.GetAnsibleExecutionLogs)
 		}
+
+		// 监控路由
+		monitoring := api.Group("/monitoring")
+		{
+			monitoring.GET("/system/:groupId", handlers.GetSystemInfo)
+			monitoring.GET("/processes/:groupId", handlers.GetProcessInfo)
+		}
 	}
 
 	log.Println("Server starting on :8080")

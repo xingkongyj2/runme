@@ -62,3 +62,11 @@ export const hostAPI = {
   // 删除主机
   delete: (id) => api.delete(`/hosts/${id}`)
 };
+
+// 监控API
+export const monitoringAPI = {
+  getSystemInfo: (groupId) => api.get(`/monitoring/system/${groupId}`),
+  getProcessInfo: (groupId) => api.get(`/monitoring/processes/${groupId}`),
+};
+
+export default api;
