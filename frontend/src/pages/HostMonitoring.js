@@ -22,10 +22,23 @@ const HostMonitoring = () => {
     }
   }, [hostGroups, activeTab, activeGroupTab]);
 
+  // 在fetchHostGroups函数中添加本地监控选项
   const fetchHostGroups = async () => {
     try {
       const response = await hostGroupAPI.getAll();
-      setHostGroups(response.data.data || []);
+      const groups = response.data.data || [];
+      
+      // 添加本地监控选项
+      const localGroup = {
+        id: 0,
+        name: '本地监控',
+        username: '',
+        password: '',
+        port: 0,
+        hosts: 'localhost'
+      };
+      
+      setHostGroups([localGroup, ...groups]);
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch host groups:', error);

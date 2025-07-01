@@ -19,6 +19,13 @@ func GetSystemInfo(c *gin.Context) {
 		return
 	}
 
+	// 特殊处理：如果groupId为0，返回本地系统信息
+	if groupID == 0 {
+		localInfo := services.GetLocalSystemInfo()
+		c.JSON(http.StatusOK, gin.H{"data": []models.SystemInfo{localInfo}})
+		return
+	}
+
 	// 获取主机组信息
 	hostGroup, err := services.GetHostGroupByID(groupID)
 	if err != nil {
@@ -32,11 +39,14 @@ func GetSystemInfo(c *gin.Context) {
 
 	// 并发获取每个主机的系统信息
 	resultChan := make(chan models.SystemInfo, len(hosts))
+	validHosts := 0
+
 	for _, host := range hosts {
 		host = strings.TrimSpace(host)
 		if host == "" {
 			continue
 		}
+		validHosts++
 		go func(h string) {
 			info := services.GetHostSystemInfo(h, hostGroup.Username, hostGroup.Password, hostGroup.Port)
 			resultChan <- info
@@ -44,10 +54,8 @@ func GetSystemInfo(c *gin.Context) {
 	}
 
 	// 收集结果
-	for i := 0; i < len(hosts); i++ {
-		if hosts[i] != "" {
-			systemInfos = append(systemInfos, <-resultChan)
-		}
+	for i := 0; i < validHosts; i++ {
+		systemInfos = append(systemInfos, <-resultChan)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": systemInfos})
@@ -59,6 +67,13 @@ func GetProcessInfo(c *gin.Context) {
 	groupID, err := strconv.Atoi(groupIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid group ID"})
+		return
+	}
+
+	// 特殊处理：如果groupId为0，返回本地进程信息
+	if groupID == 0 {
+		localProcesses := services.GetLocalProcessInfo()
+		c.JSON(http.StatusOK, gin.H{"data": localProcesses})
 		return
 	}
 
@@ -75,11 +90,14 @@ func GetProcessInfo(c *gin.Context) {
 
 	// 并发获取每个主机的进程信息
 	resultChan := make(chan []models.ProcessInfo, len(hosts))
+	validHosts := 0
+
 	for _, host := range hosts {
 		host = strings.TrimSpace(host)
 		if host == "" {
 			continue
 		}
+		validHosts++
 		go func(h string) {
 			processes := services.GetHostProcessInfo(h, hostGroup.Username, hostGroup.Password, hostGroup.Port)
 			resultChan <- processes
@@ -87,10 +105,8 @@ func GetProcessInfo(c *gin.Context) {
 	}
 
 	// 收集结果
-	for i := 0; i < len(hosts); i++ {
-		if hosts[i] != "" {
-			processInfos = append(processInfos, <-resultChan...)
-		}
+	for i := 0; i < validHosts; i++ {
+		processInfos = append(processInfos, <-resultChan...)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": processInfos})
