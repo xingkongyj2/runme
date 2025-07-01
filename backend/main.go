@@ -84,6 +84,16 @@ func main() {
 			monitoring.GET("/system/:groupId", handlers.GetSystemInfo)
 			monitoring.GET("/processes/:groupId", handlers.GetProcessInfo)
 		}
+
+		// 部署路由
+		deployment := api.Group("/deployment")
+		{
+			deployment.GET("", handlers.GetDeploymentTasks)
+			deployment.POST("", handlers.CreateDeploymentTask)
+			deployment.POST("/:id/execute", handlers.ExecuteDeploymentTask)
+			deployment.GET("/:id/logs", handlers.GetDeploymentLogs)
+			deployment.DELETE("/:id", handlers.DeleteDeploymentTask)
+		}
 	}
 
 	log.Println("Server starting on :8080")

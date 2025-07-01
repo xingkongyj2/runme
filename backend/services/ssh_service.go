@@ -95,3 +95,39 @@ func ExecuteScriptOnHosts(hosts []string, username, password, script string) []E
 
 	return results
 }
+
+// ExecuteSSHCommand 执行SSH命令
+func ExecuteSSHCommand(host, username, password string, port int, script string) (string, error) {
+	// SSH配置
+	config := &ssh.ClientConfig{
+		User: username,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(password),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         30 * time.Second,
+	}
+
+	// 连接SSH
+	addr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
+	conn, err := ssh.Dial("tcp", addr, config)
+	if err != nil {
+		return "", fmt.Errorf("failed to connect: %v", err)
+	}
+	defer conn.Close()
+
+	// 创建会话
+	session, err := conn.NewSession()
+	if err != nil {
+		return "", fmt.Errorf("failed to create session: %v", err)
+	}
+	defer session.Close()
+
+	// 执行脚本
+	output, err := session.CombinedOutput(script)
+	if err != nil {
+		return string(output), fmt.Errorf("script execution failed: %v", err)
+	}
+
+	return string(output), nil
+}

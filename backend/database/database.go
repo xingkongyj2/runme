@@ -142,6 +142,43 @@ func createAnsibleTables() {
 	);
 	`
 
+	// 创建部署任务表
+	deploymentTaskTable := `
+	CREATE TABLE IF NOT EXISTS deployment_tasks (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		github_url TEXT NOT NULL,
+		branch TEXT NOT NULL DEFAULT 'main',
+		host_group_id INTEGER NOT NULL,
+		status TEXT NOT NULL DEFAULT 'pending',
+		description TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (host_group_id) REFERENCES host_groups(id)
+	);
+	`
+
+	// 创建部署日志表
+	deploymentLogTable := `
+	CREATE TABLE IF NOT EXISTS deployment_logs (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		task_id INTEGER NOT NULL,
+		host TEXT NOT NULL,
+		status TEXT NOT NULL,
+		output TEXT,
+		error TEXT,
+		deployed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (task_id) REFERENCES deployment_tasks(id)
+	);
+	`
+
+	deploymentTables := []string{deploymentTaskTable, deploymentLogTable}
+	for _, table := range deploymentTables {
+		if _, err := DB.Exec(table); err != nil {
+			log.Fatal("Failed to create deployment table:", err)
+		}
+	}
+
 	ansibleTables := []string{ansiblePlaybookTable, ansibleExecutionLogTable, ansibleExecutionSessionTable}
 	for _, table := range ansibleTables {
 		if _, err := DB.Exec(table); err != nil {

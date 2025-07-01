@@ -7,6 +7,7 @@ import Ansible from './pages/Ansible';
 import DockerTemplates from './pages/DockerTemplates';
 import Terminal from './pages/Terminal';
 import HostMonitoring from './pages/HostMonitoring';
+import Deployment from './pages/Deployment';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route path="/" element={<Layout><HostGroups /></Layout>} />
           <Route path="/hostgroups" element={<Layout><HostGroups /></Layout>} />
           <Route path="/monitoring" element={<Layout><HostMonitoring /></Layout>} />
+          <Route path="/deployment" element={<Layout><Deployment /></Layout>} />
           <Route path="/scripts" element={<Layout><Scripts /></Layout>} />
           <Route path="/ansible" element={<Layout><Ansible /></Layout>} />
           <Route path="/docker-templates" element={<Layout><DockerTemplates /></Layout>} />
