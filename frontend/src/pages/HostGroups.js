@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Server, Upload, Play, Wifi, Search } from 'lucide-react';
+import { Plus, Edit, Trash2, Server, Upload, Play, Wifi, Search, Eye } from 'lucide-react';
 import { hostGroupAPI } from '../services/api';
 import Modal from '../components/Modal';
+import HostGroupDetail from '../components/HostGroupDetail';
 
 const HostGroups = () => {
   const [hostGroups, setHostGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [showBatchModal, setShowBatchModal] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
-  const [selectedHosts, setSelectedHosts] = useState([]);
+  const [selectedGroups, setSelectedGroups] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showDetail, setShowDetail] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     username: '',
@@ -18,7 +20,6 @@ const HostGroups = () => {
     port: '22',
     hosts: ''
   });
-  const [batchHosts, setBatchHosts] = useState('');
 
   useEffect(() => {
     fetchHostGroups();
@@ -58,14 +59,6 @@ const HostGroups = () => {
     }
   };
 
-  const handleBatchAdd = () => {
-    if (batchHosts.trim()) {
-      setFormData({ ...formData, hosts: batchHosts });
-      setShowBatchModal(false);
-      setShowModal(true);
-    }
-  };
-
   const handleEdit = (group) => {
     setEditingGroup(group);
     setFormData({
@@ -90,26 +83,42 @@ const HostGroups = () => {
     }
   };
 
-  const openBatchModal = () => {
-    setBatchHosts('');
-    setShowBatchModal(true);
+  const openDetail = (group) => {
+    setSelectedGroup(group);
+    setShowDetail(true);
   };
 
-  const toggleHostSelection = (hostId) => {
-    setSelectedHosts(prev => 
-      prev.includes(hostId) 
-        ? prev.filter(id => id !== hostId)
-        : [...prev, hostId]
+  const closeDetail = () => {
+    setShowDetail(false);
+    setSelectedGroup(null);
+    fetchHostGroups(); // 刷新主机组列表
+  };
+
+  const toggleGroupSelection = (groupId) => {
+    setSelectedGroups(prev => 
+      prev.includes(groupId) 
+        ? prev.filter(id => id !== groupId)
+        : [...prev, groupId]
     );
   };
 
-  const selectAllHosts = () => {
-    if (selectedHosts.length === hostGroups.length) {
-      setSelectedHosts([]);
+  const selectAllGroups = () => {
+    if (selectedGroups.length === hostGroups.length) {
+      setSelectedGroups([]);
     } else {
-      setSelectedHosts(hostGroups.map(group => group.id));
+      setSelectedGroups(hostGroups.map(group => group.id));
     }
   };
+
+  const getHostCount = (hosts) => {
+    if (!hosts) return 0;
+    return hosts.split('\n').filter(h => h.trim()).length;
+  };
+
+  const filteredGroups = hostGroups.filter(group => 
+    group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (group.hosts && group.hosts.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   if (loading) {
     return (
@@ -126,10 +135,10 @@ const HostGroups = () => {
         <h1 className="text-2xl font-bold text-foreground">主机组管理</h1>
         <button 
           className="btn-primary flex items-center gap-2"
-          onClick={openBatchModal}
+          onClick={() => setShowModal(true)}
         >
           <Plus size={16} />
-          批量添加主机
+          新建主机组
         </button>
       </div>
 
@@ -141,7 +150,7 @@ const HostGroups = () => {
             <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary" />
             <input
               type="text"
-              placeholder="搜索主机名、IP"
+              placeholder="搜索主机组名称、IP"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -166,24 +175,24 @@ const HostGroups = () => {
         </div>
       </div>
 
-      {/* 主机列表卡片 */}
+      {/* 主机组列表卡片 */}
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="p-6 border-b border-border">
           <div className="flex items-center gap-3">
             <input 
               type="checkbox" 
               className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
-              checked={selectedHosts.length === hostGroups.length && hostGroups.length > 0}
-              onChange={selectAllHosts}
+              checked={selectedGroups.length === hostGroups.length && hostGroups.length > 0}
+              onChange={selectAllGroups}
             />
-            <span className="text-lg font-semibold text-foreground">主机列表</span>
+            <span className="text-lg font-semibold text-foreground">主机组列表</span>
           </div>
         </div>
 
-        {hostGroups.length === 0 ? (
+        {filteredGroups.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Server size={48} className="text-foreground-secondary mb-4" />
-            <p className="text-foreground-secondary">暂无主机，点击上方按钮添加第一个主机</p>
+            <p className="text-foreground-secondary">暂无主机组，点击上方按钮创建第一个主机组</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -194,122 +203,77 @@ const HostGroups = () => {
                     <input 
                       type="checkbox" 
                       className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
-                      checked={selectedHosts.length === hostGroups.length}
-                      onChange={selectAllHosts}
+                      checked={selectedGroups.length === filteredGroups.length}
+                      onChange={selectAllGroups}
                     />
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">备注</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">地址</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">主机组名称</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">用户名</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">端口</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">主机数量</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">状态</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {hostGroups.map((group) => {
-                  const hostList = group.hosts ? group.hosts.split('\n').filter(h => h.trim()) : [];
-                  return hostList.map((host, index) => (
-                    <tr key={`${group.id}-${index}`} className="hover:bg-background-secondary transition-colors">
-                      <td className="px-6 py-4">
-                        <input 
-                          type="checkbox" 
-                          className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
-                          checked={selectedHosts.includes(group.id)}
-                          onChange={() => toggleHostSelection(group.id)}
-                        />
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <Server size={16} className="text-primary" />
-                          <span className="text-foreground font-medium">{index === 0 ? group.name : ''}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-foreground font-mono">{host.trim()}</td>
-                      <td className="px-6 py-4 text-foreground">{group.username}</td>
-                      <td className="px-6 py-4 text-foreground">{group.port}</td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                          -
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <button 
-                            className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20"
-                            title="刷新"
-                          >
-                            <Wifi size={14} />
-                          </button>
-                          <button 
-                            className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20"
-                            onClick={() => handleEdit(group)}
-                            title="编辑"
-                          >
-                            <Edit size={14} />
-                          </button>
-                          <button 
-                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
-                            onClick={() => handleDelete(group.id)}
-                            title="删除"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ));
-                })}
+                {filteredGroups.map((group) => (
+                  <tr key={group.id} className="hover:bg-background-secondary transition-colors">
+                    <td className="px-6 py-4">
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
+                        checked={selectedGroups.includes(group.id)}
+                        onChange={() => toggleGroupSelection(group.id)}
+                      />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <Server size={16} className="text-primary" />
+                        <span className="text-foreground font-medium">{group.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-foreground">{group.username}</td>
+                    <td className="px-6 py-4 text-foreground">{group.port}</td>
+                    <td className="px-6 py-4 text-foreground">{getHostCount(group.hosts)} 台</td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                        -
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <button 
+                          className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20"
+                          onClick={() => openDetail(group)}
+                          title="查看详情"
+                        >
+                          <Eye size={14} />
+                        </button>
+                        <button 
+                          className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20"
+                          onClick={() => handleEdit(group)}
+                          title="编辑"
+                        >
+                          <Edit size={14} />
+                        </button>
+                        <button 
+                          className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
+                          onClick={() => handleDelete(group.id)}
+                          title="删除"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* 批量添加主机弹窗 */}
-      <Modal 
-        isOpen={showBatchModal} 
-        onClose={() => setShowBatchModal(false)}
-        title="批量添加主机"
-      >
-        <div className="space-y-4">
-          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">每行输入一台主机信息，格式：备注 地址 用户名 端口 SSH密码。例如：</p>
-            <div className="font-mono text-sm bg-blue-100 dark:bg-blue-900/40 p-2 rounded border text-blue-900 dark:text-blue-100">
-              1 192.168.1.1 root 22 yourpassword
-            </div>
-          </div>
-          
-          <div>
-            <textarea
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
-              rows="8"
-              value={batchHosts}
-              onChange={(e) => setBatchHosts(e.target.value)}
-              placeholder="需遵循示例格式输入"
-            />
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
-            <button 
-              type="button" 
-              className="btn-secondary"
-              onClick={() => setShowBatchModal(false)}
-            >
-              取消
-            </button>
-            <button 
-              type="button" 
-              className="btn-primary"
-              onClick={handleBatchAdd}
-            >
-              确认添加
-            </button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* 编辑主机弹窗 */}
+      {/* 编辑主机组弹窗 */}
       <Modal 
         isOpen={showModal} 
         onClose={() => setShowModal(false)}
@@ -392,6 +356,14 @@ const HostGroups = () => {
           </div>
         </form>
       </Modal>
+
+      {/* 主机组详情弹窗 */}
+      {showDetail && selectedGroup && (
+        <HostGroupDetail
+          group={selectedGroup}
+          onClose={closeDetail}
+        />
+      )}
     </div>
   );
 };

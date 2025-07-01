@@ -40,6 +40,19 @@ func createTables() {
 	);
 	`
 
+	// 创建主机表
+	hostTable := `
+	CREATE TABLE IF NOT EXISTS hosts (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		ip TEXT NOT NULL,
+		host_group_id INTEGER NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (host_group_id) REFERENCES host_groups(id) ON DELETE CASCADE,
+		UNIQUE(ip, host_group_id)
+	);
+	`
+
 	// 创建脚本表
 	scriptTable := `
 	CREATE TABLE IF NOT EXISTS scripts (
@@ -78,7 +91,7 @@ func createTables() {
 	);
 	`
 
-	tables := []string{hostGroupTable, scriptTable, executionLogTable, executionSessionTable}
+	tables := []string{hostGroupTable, hostTable, scriptTable, executionLogTable, executionSessionTable}
 	for _, table := range tables {
 		if _, err := DB.Exec(table); err != nil {
 			log.Fatal("Failed to create table:", err)

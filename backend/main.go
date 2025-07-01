@@ -19,7 +19,7 @@ func main() {
 
 	// 配置CORS
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowOrigins:     []string{"*"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		AllowCredentials: true,
@@ -29,13 +29,28 @@ func main() {
 	api := r.Group("/api")
 	{
 		// 主机组路由
-		hostGroups := api.Group("/hostgroups")
+		hostGroupRoutes := api.Group("/hostgroups")
 		{
-			hostGroups.GET("", handlers.GetHostGroups)
-			hostGroups.POST("", handlers.CreateHostGroup)
-			hostGroups.PUT("/:id", handlers.UpdateHostGroup)
-			hostGroups.DELETE("/:id", handlers.DeleteHostGroup)
+			hostGroupRoutes.GET("", handlers.GetHostGroups)
+			hostGroupRoutes.POST("", handlers.CreateHostGroup)
+			hostGroupRoutes.PUT("/:id", handlers.UpdateHostGroup)
+			hostGroupRoutes.DELETE("/:id", handlers.DeleteHostGroup)
+
+			// 主机相关路由
+			hostGroupRoutes.GET("/:groupId/hosts", handlers.GetHostsByGroupID)
 		}
+
+		// 主机路由
+		hostRoutes := api.Group("/hosts")
+		{
+			hostRoutes.GET("/:id", handlers.GetHostByID)
+			hostRoutes.POST("", handlers.CreateHost)
+			hostRoutes.PUT("/:id", handlers.UpdateHost)
+			hostRoutes.DELETE("/:id", handlers.DeleteHost)
+		}
+
+		// 终端路由
+		api.GET("/terminal/:hostId", handlers.HandleSSHTerminalByHostID)
 
 		// 脚本路由
 		scripts := api.Group("/scripts")
@@ -49,6 +64,8 @@ func main() {
 			scripts.GET("/:id/logs", handlers.GetExecutionLogs)
 		}
 
+		// SSH终端路由
+		api.GET("/terminal/:hostGroupId", handlers.HandleSSHTerminal)
 		// Ansible路由
 		ansible := api.Group("/ansible")
 		{

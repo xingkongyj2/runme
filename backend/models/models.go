@@ -4,6 +4,15 @@ import (
 	"time"
 )
 
+// Host 主机模型
+type Host struct {
+	ID          int       `json:"id" db:"id"`
+	IP          string    `json:"ip" db:"ip"`
+	HostGroupID int       `json:"host_group_id" db:"host_group_id"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+}
+
 // HostGroup 主机组模型
 type HostGroup struct {
 	ID        int       `json:"id" db:"id"`
@@ -11,7 +20,7 @@ type HostGroup struct {
 	Username  string    `json:"username" db:"username"`
 	Password  string    `json:"password" db:"password"`
 	Port      int       `json:"port" db:"port"`   // 新增端口字段
-	Hosts     string    `json:"hosts" db:"hosts"` // 存储为换行分隔的IP列表
+	Hosts     string    `json:"hosts" db:"hosts"` // 保持兼容性，但逐步迁移到Host表
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }

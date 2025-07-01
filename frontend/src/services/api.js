@@ -45,4 +45,20 @@ export const ansibleAPI = {
   },
 };
 
-export default api;
+// 主机API
+export const hostAPI = {
+  // 获取指定主机组的所有主机
+  getByGroupId: (groupId) => api.get(`/hostgroups/${groupId}/hosts`),
+  
+  // 根据ID获取主机
+  getById: (id) => api.get(`/hosts/${id}`),
+  
+  // 创建主机
+  create: (hostData) => api.post('/hosts', hostData),
+  
+  // 更新主机
+  update: (id, hostData) => api.put(`/hosts/${id}`, hostData),
+  
+  // 删除主机
+  delete: (id) => api.delete(`/hosts/${id}`)
+};
