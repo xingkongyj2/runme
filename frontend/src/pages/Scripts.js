@@ -121,7 +121,7 @@ const Scripts = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-foreground">脚本管理</h1>
+        <h1 className="text-2xl font-bold text-foreground">Shell管理</h1>
         <button 
           className="btn-primary flex items-center gap-2"
           onClick={() => {

@@ -8,38 +8,41 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Dokploy深色主题配色
+        // 深色主题配色 - 黑色底色，白色点缀
         background: {
-          DEFAULT: '#0a0a0a',
-          secondary: '#111111',
+          DEFAULT: '#000000', // 纯黑背景
+          secondary: '#18181b', // 侧边栏背景色
           tertiary: '#1a1a1a'
         },
         foreground: {
-          DEFAULT: '#ffffff',
-          secondary: '#a1a1aa',
-          muted: '#71717a'
+          DEFAULT: '#ffffff', // 纯白文字
+          secondary: '#d1d5db',
+          muted: '#9ca3af'
         },
         primary: {
-          DEFAULT: '#3b82f6',
-          hover: '#2563eb',
-          foreground: '#ffffff'
+          DEFAULT: '#ffffff', // 白色主色
+          hover: '#f3f4f6',
+          foreground: '#000000'
         },
-        border: '#27272a',
-        input: '#18181b',
-        card: '#111111',
+        border: 'transparent', // 完全透明，去掉所有边框
+        input: '#1f2937',
+        card: '#18181b', // 使用相同的背景色
         destructive: {
           DEFAULT: '#ef4444',
           hover: '#dc2626'
         },
         success: {
-          DEFAULT: '#22c55e',
-          hover: '#16a34a'
+          DEFAULT: '#10b981',
+          hover: '#059669'
         }
       },
       borderRadius: {
         lg: '0.5rem',
         md: '0.375rem',
         sm: '0.25rem'
+      },
+      boxShadow: {
+        '2xl': '0 25px 50px -12px rgba(255, 255, 255, 0.1)',
       }
     },
   },

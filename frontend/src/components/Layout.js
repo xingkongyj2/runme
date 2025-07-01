@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Server, FileText, Terminal, Settings } from 'lucide-react';
+import { Server, FileText, Terminal, Settings, Package } from 'lucide-react';
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -13,62 +13,71 @@ const Layout = ({ children }) => {
     },
     {
       path: '/ansible',
-      name: 'Ansible',
+      name: 'Ansible管理',
       icon: Settings
     },
     {
       path: '/scripts',
-      name: '脚本管理',
+      name: 'Shell管理',
       icon: FileText
+    },
+    {
+      path: '/docker-templates',
+      name: 'Docker模板',
+      icon: Package
     }
   ];
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* 侧边栏 */}
-      <div className="w-72 sidebar-gradient border-r border-border flex flex-col fixed h-screen left-0 top-0 z-50">
-        <div className="p-6 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-blue-400 rounded-lg flex items-center justify-center shadow-lg shadow-primary/30">
-              <Terminal className="w-5 h-5 text-white" />
+    <div className="flex min-h-screen bg-black">
+      {/* 侧边栏容器 */}
+      <div className="w-72 p-4 fixed h-screen left-0 top-0 z-50">
+        {/* 浮动的侧边栏模块 - 使用指定的背景色 #18181b */}
+        <div className="h-full rounded-2xl shadow-2xl border border-gray-900/30 flex flex-col overflow-hidden" style={{backgroundColor: '#18181b'}}>
+          {/* 头部 - 移除底部边框 */}
+          <div className="p-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                <Terminal className="w-5 h-5 text-black" />
+              </div>
+              <span className="text-xl font-bold text-white">
+                RunMe
+              </span>
             </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-foreground to-primary bg-clip-text text-transparent">
-              RunMe
-            </span>
           </div>
+          
+          {/* 菜单区域 */}
+          <nav className="flex-1 p-4">
+            <div className="space-y-2">
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`
+                      flex items-center gap-3 p-3 rounded-xl transition-all duration-200 relative group
+                      ${
+                        isActive
+                          ? 'bg-black text-white'
+                          : 'text-gray-300 hover:text-white hover:bg-gray-800/50'
+                      }
+                    `}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-base font-medium">{item.name}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
         </div>
-        
-        <nav className="flex-1 p-4">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.path;
-            
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`
-                  flex items-center gap-3 p-3.5 mb-2 rounded-lg transition-all duration-200 relative overflow-hidden group
-                  ${
-                    isActive
-                      ? 'bg-gradient-to-r from-primary to-blue-400 text-white shadow-lg shadow-primary/40'
-                      : 'text-foreground-secondary hover:text-foreground hover:bg-background-tertiary hover:translate-x-1'
-                  }
-                `}
-              >
-                <Icon className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium">{item.name}</span>
-                {!isActive && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-500" />
-                )}
-              </Link>
-            );
-          })}
-        </nav>
       </div>
 
       {/* 主内容区 */}
-      <div className="flex-1 ml-72 bg-background min-h-screen">
+      <div className="flex-1 ml-72 bg-black min-h-screen">
         <div className="p-8 max-w-7xl mx-auto">
           {children}
         </div>

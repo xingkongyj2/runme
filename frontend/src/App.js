@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import HostGroups from './pages/HostGroups';
 import Scripts from './pages/Scripts';
 import Ansible from './pages/Ansible';
+import DockerTemplates from './pages/DockerTemplates';
 import './App.css';
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
             <Route path="/hostgroups" element={<HostGroups />} />
             <Route path="/scripts" element={<Scripts />} />
             <Route path="/ansible" element={<Ansible />} />
+            <Route path="/docker-templates" element={<DockerTemplates />} />
           </Routes>
         </Layout>
       </div>

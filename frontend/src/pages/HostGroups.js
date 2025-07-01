@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Server, Upload, Play, Wifi } from 'lucide-react';
+import { Plus, Edit, Trash2, Server, Upload, Play, Wifi, Search } from 'lucide-react';
 import { hostGroupAPI } from '../services/api';
 import Modal from '../components/Modal';
 
@@ -10,6 +10,7 @@ const HostGroups = () => {
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
   const [selectedHosts, setSelectedHosts] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     username: '',
@@ -120,32 +121,48 @@ const HostGroups = () => {
 
   return (
     <div className="space-y-6">
-      {/* 页面头部 */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 p-6 bg-card rounded-xl border border-border">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground mb-2">主机管理</h1>
-          <p className="text-foreground-secondary">添加、编辑和管理您的Ansible主机。</p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <button 
-            className="btn-secondary flex items-center gap-2"
-            onClick={openBatchModal}
-          >
-            <Plus size={16} />
-            批量添加主机
-          </button>
-          <button className="btn-info flex items-center gap-2">
-            <Play size={16} />
-            执行任务
-          </button>
-          <button className="btn-secondary flex items-center gap-2">
-            <Upload size={16} />
-            上传文件
-          </button>
-          <button className="btn-primary flex items-center gap-2">
-            <Wifi size={16} />
-            Ping 所有
-          </button>
+      {/* 页面标题和主要操作 */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-2xl font-bold text-foreground">主机组管理</h1>
+        <button 
+          className="btn-primary flex items-center gap-2"
+          onClick={openBatchModal}
+        >
+          <Plus size={16} />
+          批量添加主机
+        </button>
+      </div>
+
+      {/* 功能操作区域 */}
+      <div className="p-6 bg-card rounded-xl border border-border">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          {/* 左侧搜索框 */}
+          <div className="relative flex-1 max-w-md">
+            <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary" />
+            <input
+              type="text"
+              placeholder="搜索主机名、IP"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+          </div>
+          
+          {/* 右侧其他功能按钮 */}
+          <div className="flex flex-wrap gap-3">
+            <button className="btn-info flex items-center gap-2">
+              <Play size={16} />
+              执行任务
+            </button>
+            <button className="btn-secondary flex items-center gap-2">
+              <Upload size={16} />
+              上传文件
+            </button>
+            <button className="btn-primary flex items-center gap-2">
+              <Wifi size={16} />
+              Ping 所有
+            </button>
+          </div>
         </div>
       </div>
 
