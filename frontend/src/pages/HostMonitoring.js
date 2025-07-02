@@ -28,17 +28,7 @@ const HostMonitoring = () => {
       const response = await hostGroupAPI.getAll();
       const groups = response.data.data || [];
       
-      // 添加本地监控选项
-      const localGroup = {
-        id: 0,
-        name: '本地监控',
-        username: '',
-        password: '',
-        port: 0,
-        hosts: 'localhost'
-      };
-      
-      setHostGroups([localGroup, ...groups]);
+      setHostGroups(groups);
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch host groups:', error);

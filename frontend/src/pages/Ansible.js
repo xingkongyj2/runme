@@ -174,7 +174,7 @@ const Ansible = () => {
                 type="checkbox"
                 checked={experimentalMode}
                 onChange={(e) => setExperimentalMode(e.target.checked)}
-                className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
+                className="custom-checkbox"
               />
               <span className="text-sm text-foreground flex items-center gap-1">
                 <AlertTriangle size={14} className={experimentalMode ? 'text-orange-500' : 'text-gray-400'} />

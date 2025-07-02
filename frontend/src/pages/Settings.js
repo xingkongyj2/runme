@@ -88,7 +88,7 @@ const Settings = () => {
               <p className="text-gray-300 text-sm">
                 • 拖拽菜单项可以调整显示顺序
                 • 点击眼睛图标可以显示/隐藏菜单项
-                • 主机组管理、Ansible管理、Shell管理为常驻菜单，不能隐藏
+                • 主机管理、Ansible管理、Shell管理为常驻菜单，不能隐藏
                 • 设置会实时保存并应用到左侧菜单
               </p>
             </div>

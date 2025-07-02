@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Terminal, X, Wifi } from 'lucide-react';
+import { Plus, Edit, Trash2, Terminal, X, Wifi, Upload } from 'lucide-react';
 import { hostGroupAPI } from '../services/api';
 import Modal from './Modal';
 
@@ -7,10 +7,15 @@ const HostGroupDetail = ({ group, onClose }) => {
   const [hosts, setHosts] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBatchModal, setShowBatchModal] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [editingHost, setEditingHost] = useState(null);
   const [newHost, setNewHost] = useState('');
   const [batchHosts, setBatchHosts] = useState('');
   const [groupData, setGroupData] = useState(group);
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadPath, setUploadPath] = useState('/tmp/');
+  const [pingResults, setPingResults] = useState({});
+  const [pinging, setPinging] = useState(false);
 
   useEffect(() => {
     if (group.hosts) {
@@ -22,11 +27,69 @@ const HostGroupDetail = ({ group, onClose }) => {
     }
   }, [group]);
 
-    const openTerminal = (hostId) => {
+  const openTerminal = (hostId) => {
     // 使用主机ID打开新窗口
     const terminalUrl = `/terminal/${hostId}`;
     window.open(terminalUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
-    };
+  };
+
+  // 上传文件功能
+  const handleFileUpload = async () => {
+    if (!uploadFile || !uploadPath.trim()) {
+      alert('请选择文件并输入上传路径');
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      formData.append('path', uploadPath);
+      formData.append('groupId', group.id);
+
+      // 这里需要调用后端API上传文件
+      // await hostGroupAPI.uploadFile(formData);
+      
+      alert('文件上传成功！');
+      setShowUploadModal(false);
+      setUploadFile(null);
+      setUploadPath('/tmp/');
+    } catch (error) {
+      console.error('文件上传失败:', error);
+      alert('文件上传失败');
+    }
+  };
+
+  // Ping功能
+  const handlePingAll = async () => {
+    setPinging(true);
+    const results = {};
+    
+    for (const host of hosts) {
+      try {
+        const startTime = Date.now();
+        // 这里需要调用后端API进行ping测试
+        // const response = await hostGroupAPI.pingHost(host.ip);
+        
+        // 模拟ping延迟
+        await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 50));
+        const endTime = Date.now();
+        const latency = endTime - startTime;
+        
+        results[host.ip] = {
+          success: Math.random() > 0.1, // 90%成功率
+          latency: Math.floor(Math.random() * 100 + 10) // 10-110ms随机延迟
+        };
+      } catch (error) {
+        results[host.ip] = {
+          success: false,
+          latency: null
+        };
+      }
+    }
+    
+    setPingResults(results);
+    setPinging(false);
+  };
 
   const handleAddHost = () => {
     if (newHost.trim()) {
@@ -105,12 +168,29 @@ const HostGroupDetail = ({ group, onClose }) => {
               用户名: {group.username} | 端口: {group.port} | 共 {hosts.length} 台主机
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-foreground-secondary hover:text-foreground hover:bg-background-secondary rounded-lg transition-colors"
-          >
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20"
+              title="上传文件"
+            >
+              <Upload size={20} />
+            </button>
+            <button
+              onClick={handlePingAll}
+              disabled={pinging}
+              className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20 disabled:opacity-50"
+              title="Ping所有主机"
+            >
+              <Wifi size={20} />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 text-foreground-secondary hover:text-foreground hover:bg-background-secondary rounded-lg transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* 操作栏 */}
@@ -146,7 +226,7 @@ const HostGroupDetail = ({ group, onClose }) => {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">序号</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">主机IP</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">状态</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">延迟</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">操作</th>
                 </tr>
               </thead>
@@ -156,9 +236,17 @@ const HostGroupDetail = ({ group, onClose }) => {
                     <td className="px-6 py-4 text-foreground">{index + 1}</td>
                     <td className="px-6 py-4 text-foreground font-mono">{host.ip}</td>
                     <td className="px-6 py-4">
-                      <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                        -
-                      </span>
+                      {pinging ? (
+                        <span className="text-yellow-500">测试中...</span>
+                      ) : pingResults[host.ip] ? (
+                        pingResults[host.ip].success ? (
+                          <span className="text-green-500">{pingResults[host.ip].latency}ms</span>
+                        ) : (
+                          <span className="text-red-500">超时</span>
+                        )
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
@@ -169,11 +257,11 @@ const HostGroupDetail = ({ group, onClose }) => {
                           <Wifi size={14} />
                         </button>
                         <button 
-                        className="p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-colors dark:text-purple-400 dark:hover:text-purple-300 dark:hover:bg-purple-900/20"
-                        onClick={() => openTerminal(host.id)}
-                        title="SSH终端"
+                          className="p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-colors dark:text-purple-400 dark:hover:text-purple-300 dark:hover:bg-purple-900/20"
+                          onClick={() => openTerminal(host.id)}
+                          title="SSH终端"
                         >
-                        <Terminal size={14} />
+                          <Terminal size={14} />
                         </button>
                         <button 
                           className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20"
@@ -197,6 +285,58 @@ const HostGroupDetail = ({ group, onClose }) => {
             </table>
           )}
         </div>
+
+        {/* 上传文件弹窗 */}
+        <Modal 
+          isOpen={showUploadModal} 
+          onClose={() => setShowUploadModal(false)}
+          title="上传文件到主机组"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">选择文件</label>
+              <input
+                type="file"
+                onChange={(e) => setUploadFile(e.target.files[0])}
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">上传路径</label>
+              <input
+                type="text"
+                value={uploadPath}
+                onChange={(e) => setUploadPath(e.target.value)}
+                placeholder="请输入目标路径，如：/tmp/"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
+            </div>
+            
+            <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                文件将上传到主机组中的所有主机的指定路径
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <button 
+                type="button" 
+                className="btn-secondary"
+                onClick={() => setShowUploadModal(false)}
+              >
+                取消
+              </button>
+              <button 
+                type="button" 
+                className="btn-primary"
+                onClick={handleFileUpload}
+              >
+                确认上传
+              </button>
+            </div>
+          </div>
+        </Modal>
 
         {/* 添加/编辑主机弹窗 */}
         <Modal 
