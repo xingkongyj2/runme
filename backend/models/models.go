@@ -131,3 +131,26 @@ type DeploymentLog struct {
 	Error      string    `json:"error" db:"error"`
 	DeployedAt time.Time `json:"deployed_at" db:"deployed_at"`
 }
+
+// User 用户模型
+type User struct {
+	ID        int       `json:"id" db:"id"`
+	Username  string    `json:"username" db:"username"`
+	Password  string    `json:"-" db:"password"` // 不在JSON中返回密码
+	Email     string    `json:"email" db:"email"`
+	Role      string    `json:"role" db:"role"` // admin, user
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// LoginRequest 登录请求
+type LoginRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+// LoginResponse 登录响应
+type LoginResponse struct {
+	Token string `json:"token"`
+	User  User   `json:"user"`
+}

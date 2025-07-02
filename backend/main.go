@@ -4,6 +4,7 @@ import (
 	"log"
 	"runme-backend/database"
 	"runme-backend/handlers"
+	"runme-backend/middleware"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -28,71 +29,84 @@ func main() {
 	// API路由组
 	api := r.Group("/api")
 	{
-		// 主机组路由
-		hostGroupRoutes := api.Group("/hostgroups")
+		// 认证路由（不需要JWT验证）
+		auth := api.Group("/auth")
 		{
-			hostGroupRoutes.GET("", handlers.GetHostGroups)
-			hostGroupRoutes.POST("", handlers.CreateHostGroup)
-			hostGroupRoutes.PUT("/:id", handlers.UpdateHostGroup)
-			hostGroupRoutes.DELETE("/:id", handlers.DeleteHostGroup)
-
-			// 主机相关路由
-			hostGroupRoutes.GET("/:groupId/hosts", handlers.GetHostsByGroupID)
+			auth.POST("/login", handlers.Login)
+			auth.POST("/register", handlers.Register) // 可选，用于注册
 		}
 
-		// 主机路由
-		hostRoutes := api.Group("/hosts")
+		// 需要认证的路由
+		protected := api.Group("/")
+		protected.Use(middleware.AuthMiddleware())
 		{
-			hostRoutes.GET("/:id", handlers.GetHostByID)
-			hostRoutes.POST("", handlers.CreateHost)
-			hostRoutes.PUT("/:id", handlers.UpdateHost)
-			hostRoutes.DELETE("/:id", handlers.DeleteHost)
-		}
+			// 用户信息路由
+			protected.GET("/user", handlers.GetCurrentUser)
 
-		// 终端路由
-		api.GET("/terminal/:hostId", handlers.HandleSSHTerminalByHostID)
+			// 主机组路由
+			hostGroupRoutes := protected.Group("/hostgroups")
+			{
+				hostGroupRoutes.GET("", handlers.GetHostGroups)
+				hostGroupRoutes.POST("", handlers.CreateHostGroup)
+				hostGroupRoutes.PUT("/:id", handlers.UpdateHostGroup)
+				hostGroupRoutes.DELETE("/:id", handlers.DeleteHostGroup)
+				hostGroupRoutes.GET("/:groupId/hosts", handlers.GetHostsByGroupID)
+			}
 
-		// 脚本路由
-		scripts := api.Group("/scripts")
-		{
-			scripts.GET("", handlers.GetScripts)
-			scripts.POST("", handlers.CreateScript)
-			scripts.PUT("/:id", handlers.UpdateScript)
-			scripts.DELETE("/:id", handlers.DeleteScript)
-			scripts.POST("/:id/execute", handlers.ExecuteScript)
-			scripts.GET("/:id/sessions", handlers.GetExecutionSessions)
-			scripts.GET("/:id/logs", handlers.GetExecutionLogs)
-		}
+			// 主机路由
+			hostRoutes := api.Group("/hosts")
+			{
+				hostRoutes.GET("/:id", handlers.GetHostByID)
+				hostRoutes.POST("", handlers.CreateHost)
+				hostRoutes.PUT("/:id", handlers.UpdateHost)
+				hostRoutes.DELETE("/:id", handlers.DeleteHost)
+			}
 
-		// SSH终端路由
-		api.GET("/terminal/:hostGroupId", handlers.HandleSSHTerminal)
-		// Ansible路由
-		ansible := api.Group("/ansible")
-		{
-			ansible.GET("", handlers.GetAnsiblePlaybooks)
-			ansible.POST("", handlers.CreateAnsiblePlaybook)
-			ansible.PUT("/:id", handlers.UpdateAnsiblePlaybook)
-			ansible.DELETE("/:id", handlers.DeleteAnsiblePlaybook)
-			ansible.POST("/:id/execute", handlers.ExecuteAnsiblePlaybook)
-			ansible.GET("/:id/sessions", handlers.GetAnsibleExecutionSessions)
-			ansible.GET("/:id/logs", handlers.GetAnsibleExecutionLogs)
-		}
+			// 终端路由
+			api.GET("/terminal/:hostId", handlers.HandleSSHTerminalByHostID)
 
-		// 监控路由
-		monitoring := api.Group("/monitoring")
-		{
-			monitoring.GET("/system/:groupId", handlers.GetSystemInfo)
-			monitoring.GET("/processes/:groupId", handlers.GetProcessInfo)
-		}
+			// 脚本路由
+			scripts := api.Group("/scripts")
+			{
+				scripts.GET("", handlers.GetScripts)
+				scripts.POST("", handlers.CreateScript)
+				scripts.PUT("/:id", handlers.UpdateScript)
+				scripts.DELETE("/:id", handlers.DeleteScript)
+				scripts.POST("/:id/execute", handlers.ExecuteScript)
+				scripts.GET("/:id/sessions", handlers.GetExecutionSessions)
+				scripts.GET("/:id/logs", handlers.GetExecutionLogs)
+			}
 
-		// 部署路由
-		deployment := api.Group("/deployment")
-		{
-			deployment.GET("", handlers.GetDeploymentTasks)
-			deployment.POST("", handlers.CreateDeploymentTask)
-			deployment.POST("/:id/execute", handlers.ExecuteDeploymentTask)
-			deployment.GET("/:id/logs", handlers.GetDeploymentLogs)
-			deployment.DELETE("/:id", handlers.DeleteDeploymentTask)
+			// SSH终端路由
+			api.GET("/terminal/:hostGroupId", handlers.HandleSSHTerminal)
+			// Ansible路由
+			ansible := api.Group("/ansible")
+			{
+				ansible.GET("", handlers.GetAnsiblePlaybooks)
+				ansible.POST("", handlers.CreateAnsiblePlaybook)
+				ansible.PUT("/:id", handlers.UpdateAnsiblePlaybook)
+				ansible.DELETE("/:id", handlers.DeleteAnsiblePlaybook)
+				ansible.POST("/:id/execute", handlers.ExecuteAnsiblePlaybook)
+				ansible.GET("/:id/sessions", handlers.GetAnsibleExecutionSessions)
+				ansible.GET("/:id/logs", handlers.GetAnsibleExecutionLogs)
+			}
+
+			// 监控路由
+			monitoring := api.Group("/monitoring")
+			{
+				monitoring.GET("/system/:groupId", handlers.GetSystemInfo)
+				monitoring.GET("/processes/:groupId", handlers.GetProcessInfo)
+			}
+
+			// 部署路由
+			deployment := api.Group("/deployment")
+			{
+				deployment.GET("", handlers.GetDeploymentTasks)
+				deployment.POST("", handlers.CreateDeploymentTask)
+				deployment.POST("/:id/execute", handlers.ExecuteDeploymentTask)
+				deployment.GET("/:id/logs", handlers.GetDeploymentLogs)
+				deployment.DELETE("/:id", handlers.DeleteDeploymentTask)
+			}
 		}
 	}
 

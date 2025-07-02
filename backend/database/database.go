@@ -3,8 +3,10 @@ package database
 import (
 	"database/sql"
 	"log"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var DB *sql.DB
@@ -220,6 +222,35 @@ func migrateDatabase() {
 			log.Printf("Failed to add port column: %v", err)
 		} else {
 			log.Println("Added port column to host_groups table")
+		}
+	}
+}
+
+func createDefaultAdmin() {
+	var count int
+	err := DB.QueryRow("SELECT COUNT(*) FROM users WHERE role = 'admin'").Scan(&count)
+	if err != nil {
+		log.Printf("Error checking admin users: %v", err)
+		return
+	}
+
+	if count == 0 {
+		// 创建默认管理员账户
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+		if err != nil {
+			log.Printf("Error hashing admin password: %v", err)
+			return
+		}
+
+		now := time.Now()
+		_, err = DB.Exec(
+			"INSERT INTO users (username, password, email, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+			"admin", string(hashedPassword), "admin@runme.com", "admin", now, now,
+		)
+		if err != nil {
+			log.Printf("Error creating default admin: %v", err)
+		} else {
+			log.Println("Default admin created: username=admin, password=admin123")
 		}
 	}
 }
