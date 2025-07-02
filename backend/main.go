@@ -109,6 +109,19 @@ func main() {
 
 			// AI建议路由
 			api.POST("/ai/script-suggestion", handlers.GenerateScriptSuggestion)
+
+			// 证书管理路由
+			certificates := protected.Group("/certificates")
+			{
+				certificates.GET("", handlers.GetCertificates)
+				certificates.POST("", handlers.CreateCertificate)
+				certificates.PUT("/:id", handlers.UpdateCertificate)
+				certificates.DELETE("/:id", handlers.DeleteCertificate)
+				certificates.POST("/:id/renew", handlers.RenewCertificate)
+				certificates.POST("/:id/deploy", handlers.DeployCertificate)
+				certificates.GET("/:id/download", handlers.DownloadCertificate)
+				certificates.GET("/:id/logs", handlers.GetCertificateLogs)
+			}
 		}
 	}
 

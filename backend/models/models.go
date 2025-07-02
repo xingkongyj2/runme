@@ -154,3 +154,34 @@ type LoginResponse struct {
 	Token string `json:"token"`
 	User  User   `json:"user"`
 }
+
+// Certificate 证书模型
+type Certificate struct {
+	ID          int        `json:"id" db:"id"`
+	Name        string     `json:"name" db:"name"`
+	Domain      string     `json:"domain" db:"domain"`
+	Type        string     `json:"type" db:"type"`     // letsencrypt, self-signed, custom
+	Status      string     `json:"status" db:"status"` // active, expired, expiring_soon, pending
+	AutoRenew   bool       `json:"auto_renew" db:"auto_renew"`
+	HostGroupID int        `json:"host_group_id" db:"host_group_id"`
+	DeployPath  string     `json:"deploy_path" db:"deploy_path"`
+	Email       string     `json:"email" db:"email"`
+	CertPath    string     `json:"cert_path" db:"cert_path"`
+	KeyPath     string     `json:"key_path" db:"key_path"`
+	IssuedAt    *time.Time `json:"issued_at" db:"issued_at"`
+	ExpiresAt   *time.Time `json:"expires_at" db:"expires_at"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
+}
+
+// CertificateLog 证书操作日志模型
+type CertificateLog struct {
+	ID            int       `json:"id" db:"id"`
+	CertificateID int       `json:"certificate_id" db:"certificate_id"`
+	Action        string    `json:"action" db:"action"` // issue, renew, deploy, revoke
+	Status        string    `json:"status" db:"status"` // success, failed, pending
+	Message       string    `json:"message" db:"message"`
+	Output        string    `json:"output" db:"output"`
+	Error         string    `json:"error" db:"error"`
+	CreatedAt     time.Time `json:"created_at" db:"created_at"`
+}

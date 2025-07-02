@@ -113,4 +113,17 @@ export const deploymentAPI = {
   getLogs: (id) => api.get(`/deployment/${id}/logs`)
 };
 
+// 证书管理API
+export const certificateAPI = {
+  getAll: () => api.get('/certificates'),
+  getById: (id) => api.get(`/certificates/${id}`),
+  create: (data) => api.post('/certificates', data),
+  update: (id, data) => api.put(`/certificates/${id}`, data),
+  delete: (id) => api.delete(`/certificates/${id}`),
+  renew: (id) => api.post(`/certificates/${id}/renew`),
+  deploy: (id) => api.post(`/certificates/${id}/deploy`),
+  download: (id) => api.get(`/certificates/${id}/download`, { responseType: 'blob' }),
+  getLogs: (id) => api.get(`/certificates/${id}/logs`)
+};
+
 export default api;

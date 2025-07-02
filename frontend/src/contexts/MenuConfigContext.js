@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Server, FileText, Settings, Package, Monitor, Rocket } from 'lucide-react';
+import { Server, FileText, Settings, Package, Monitor, Rocket, Shield } from 'lucide-react';
 
 const MenuConfigContext = createContext();
 
@@ -59,6 +59,14 @@ const defaultMenuConfig = {
       path: '/deployment',
       name: '项目部署',
       icon: Rocket,
+      visible: true,
+      required: false
+    },
+    {
+      id: 'certificates',
+      path: '/certificates',
+      name: '证书管理',
+      icon: Shield,
       visible: true,
       required: false
     }

@@ -13,6 +13,7 @@ import DockerTemplates from './pages/DockerTemplates';
 import Terminal from './pages/Terminal';
 import HostMonitoring from './pages/HostMonitoring';
 import Deployment from './pages/Deployment';
+import CertificateManagement from './pages/CertificateManagement';
 
 function App() {
   return (
@@ -37,6 +38,7 @@ function App() {
                     <Route path="/docker-templates" element={<DockerTemplates />} />
                     <Route path="/monitoring" element={<HostMonitoring />} />
                     <Route path="/deployment" element={<Deployment />} />
+                    <Route path="/certificates" element={<CertificateManagement />} />
                     <Route path="/settings" element={<Settings />} />
                   </Routes>
                 </Layout>
