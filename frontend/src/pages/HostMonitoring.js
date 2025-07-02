@@ -66,7 +66,7 @@ const HostMonitoring = () => {
   };
 
   const renderSystemCard = (host) => (
-    <div key={host.ip} className="bg-gray-900 rounded-lg p-6 border border-gray-800">
+    <div key={host.ip} className="bg-card rounded-lg p-6 border border-gray-600 shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-white">{host.ip}</h3>
         <div className={`w-3 h-3 rounded-full ${
@@ -77,12 +77,12 @@ const HostMonitoring = () => {
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <Cpu className="w-4 h-4 text-blue-400" />
+            <Cpu className="w-4 h-4 text-gray-400" />
             <span className="text-sm text-gray-300">CPU</span>
           </div>
           <div className="w-full bg-gray-700 rounded-full h-2">
             <div 
-              className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+              className="bg-gray-500 h-2 rounded-full transition-all duration-300" 
               style={{ width: `${host.cpu_usage || 0}%` }}
             ></div>
           </div>
@@ -134,7 +134,7 @@ const HostMonitoring = () => {
           <span className="text-sm text-gray-300">开放端口:</span>
           <div className="flex flex-wrap gap-1 mt-1">
             {host.ports.slice(0, 5).map(port => (
-              <span key={port} className="text-xs bg-gray-800 text-gray-300 px-2 py-1 rounded">
+              <span key={port} className="text-xs bg-background-secondary text-foreground-secondary px-2 py-1 rounded">
                 {port}
               </span>
             ))}
@@ -148,7 +148,7 @@ const HostMonitoring = () => {
   );
 
   const renderProcessCard = (process) => (
-    <div key={process.pid} className="bg-gray-900 rounded-lg p-4 border border-gray-800">
+    <div key={process.pid} className="bg-card rounded-lg p-4 border border-gray-600 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <h4 className="text-sm font-medium text-white truncate">{process.name}</h4>
         <span className="text-xs text-gray-400">PID: {process.pid}</span>
@@ -157,7 +157,7 @@ const HostMonitoring = () => {
       <div className="grid grid-cols-3 gap-3 text-xs">
         <div>
           <span className="text-gray-400">CPU:</span>
-          <div className="text-blue-400 font-medium">{process.cpu_usage}%</div>
+          <div className="text-gray-300 font-medium">{process.cpu_usage}%</div>
         </div>
         <div>
           <span className="text-gray-400">内存:</span>
@@ -191,79 +191,76 @@ const HostMonitoring = () => {
     <div className="space-y-6">
       {/* 页面标题 */}
       <div className="flex items-center gap-3">
-        <Monitor className="w-8 h-8 text-blue-400" />
+        <Monitor className="w-8 h-8 text-gray-400" />
         <h1 className="text-3xl font-bold text-white">主机监控</h1>
       </div>
 
       {/* 主要Tab页 */}
-      <div className="bg-gray-900 rounded-lg border border-gray-800">
-        <div className="border-b border-gray-800">
-          <nav className="flex space-x-8 px-6">
-            <button
-              onClick={() => setActiveTab('system')}
-              className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'system'
-                  ? 'border-blue-500 text-blue-400'
-                  : 'border-transparent text-gray-400 hover:text-gray-300'
-              }`}
-            >
-              系统概览
-            </button>
-            <button
-              onClick={() => setActiveTab('process')}
-              className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'process'
-                  ? 'border-blue-500 text-blue-400'
-                  : 'border-transparent text-gray-400 hover:text-gray-300'
-              }`}
-            >
-              进程详情
-            </button>
-          </nav>
+      <div className="space-y-6">
+        {/* Tab按钮区域 */}
+        <div className="flex space-x-1">
+          <button
+            onClick={() => setActiveTab('system')}
+            className={`px-6 py-3 text-sm font-medium transition-colors rounded-lg ${
+              activeTab === 'system'
+                ? 'bg-card text-white border border-border'
+                : 'text-gray-400 hover:text-white bg-transparent'
+            }`}
+          >
+            系统概览
+          </button>
+          <button
+            onClick={() => setActiveTab('process')}
+            className={`px-6 py-3 text-sm font-medium transition-colors rounded-lg ${
+              activeTab === 'process'
+                ? 'bg-card text-white border border-border'
+                : 'text-gray-400 hover:text-white bg-transparent'
+            }`}
+          >
+            进程详情
+          </button>
         </div>
+        
+        {/* 主机组Tab页 */}
+        {hostGroups.length > 0 && (
+          <div className="mb-6">
+            <div className="border-b border-gray-800">
+              <nav className="flex space-x-6">
+                {hostGroups.map((group, index) => (
+                  <button
+                    key={group.id}
+                    onClick={() => setActiveGroupTab(index)}
+                    className={`py-2 px-3 border-b-2 font-medium text-sm transition-colors ${
+                      activeGroupTab === index
+                        ? 'border-green-500 text-green-400'
+                        : 'border-transparent text-gray-400 hover:text-gray-300'
+                    }`}
+                  >
+                    {group.name}
+                  </button>
+                ))}
+              </nav>
+            </div>
+          </div>
+        )}
 
-        <div className="p-6">
-          {/* 主机组Tab页 */}
-          {hostGroups.length > 0 && (
-            <div className="mb-6">
-              <div className="border-b border-gray-800">
-                <nav className="flex space-x-6">
-                  {hostGroups.map((group, index) => (
-                    <button
-                      key={group.id}
-                      onClick={() => setActiveGroupTab(index)}
-                      className={`py-2 px-3 border-b-2 font-medium text-sm transition-colors ${
-                        activeGroupTab === index
-                          ? 'border-green-500 text-green-400'
-                          : 'border-transparent text-gray-400 hover:text-gray-300'
-                      }`}
-                    >
-                      {group.name}
-                    </button>
-                  ))}
-                </nav>
-              </div>
+        {/* 内容区域 */}
+        <div className="space-y-4">
+          {activeTab === 'system' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {currentGroupData.map(renderSystemCard)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {currentGroupData.map(renderProcessCard)}
             </div>
           )}
-
-          {/* 内容区域 */}
-          <div className="space-y-4">
-            {activeTab === 'system' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {currentGroupData.map(renderSystemCard)}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {currentGroupData.map(renderProcessCard)}
-              </div>
-            )}
-            
-            {currentGroupData.length === 0 && (
-              <div className="text-center py-12">
-                <div className="text-gray-400">暂无数据</div>
-              </div>
-            )}
-          </div>
+          
+          {currentGroupData.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-gray-400">暂无数据</div>
+            </div>
+          )}
         </div>
       </div>
     </div>

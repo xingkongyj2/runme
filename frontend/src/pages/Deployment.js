@@ -143,7 +143,7 @@ const Deployment = () => {
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+          className="text-gray-400 hover:text-white px-4 py-2 flex items-center gap-2 transition-colors"
         >
           <Plus className="w-4 h-4" />
           新建部署任务
@@ -151,7 +151,7 @@ const Deployment = () => {
       </div>
 
       {/* 任务列表 */}
-      <div className="bg-gray-900 rounded-xl border border-gray-800">
+      <div className="bg-card rounded-xl border border-border">
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-white">部署任务</h2>
@@ -171,7 +171,7 @@ const Deployment = () => {
           ) : (
             <div className="space-y-4">
               {tasks.map((task) => (
-                <div key={task.id} className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <div key={task.id} className="bg-background-secondary rounded-lg p-4 border border-border">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
@@ -205,7 +205,7 @@ const Deployment = () => {
                     <div className="flex items-center gap-2 ml-4">
                       <button
                         onClick={() => viewLogs(task)}
-                        className="text-blue-400 hover:text-blue-300 p-2 rounded transition-colors"
+                        className="text-gray-400 hover:text-gray-300 p-2 rounded transition-colors"
                         title="查看日志"
                       >
                         <Eye className="w-4 h-4" />
@@ -238,7 +238,7 @@ const Deployment = () => {
       {/* 创建任务模态框 */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-xl p-6 w-full max-w-md border border-gray-800">
+          <div className="bg-card rounded-xl p-6 w-full max-w-md border border-border">
             <h3 className="text-xl font-semibold text-white mb-4">新建部署任务</h3>
             
             <div className="space-y-4">
@@ -248,7 +248,7 @@ const Deployment = () => {
                   type="text"
                   value={newTask.name}
                   onChange={(e) => setNewTask({ ...newTask, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
                   placeholder="输入任务名称"
                 />
               </div>
@@ -259,7 +259,7 @@ const Deployment = () => {
                   type="url"
                   value={newTask.github_url}
                   onChange={(e) => setNewTask({ ...newTask, github_url: e.target.value })}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
                   placeholder="https://github.com/user/repo.git"
                 />
               </div>
@@ -270,7 +270,7 @@ const Deployment = () => {
                   type="text"
                   value={newTask.branch}
                   onChange={(e) => setNewTask({ ...newTask, branch: e.target.value })}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
                   placeholder="main"
                 />
               </div>
@@ -280,7 +280,7 @@ const Deployment = () => {
                 <select
                   value={newTask.host_group_id}
                   onChange={(e) => setNewTask({ ...newTask, host_group_id: e.target.value })}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
                 >
                   <option value="">选择主机组</option>
                   {hostGroups.map((group) => (
@@ -296,7 +296,7 @@ const Deployment = () => {
                 <textarea
                   value={newTask.description}
                   onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
                   rows="3"
                   placeholder="任务描述（可选）"
                 />
@@ -313,7 +313,7 @@ const Deployment = () => {
               <button
                 onClick={createTask}
                 disabled={loading}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors disabled:opacity-50"
               >
                 {loading ? '创建中...' : '创建'}
               </button>
@@ -325,7 +325,7 @@ const Deployment = () => {
       {/* 日志模态框 */}
       {showLogsModal && selectedTask && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-xl p-6 w-full max-w-4xl max-h-[80vh] border border-gray-800">
+          <div className="bg-card rounded-xl p-6 w-full max-w-4xl max-h-[80vh] border border-border">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-semibold text-white">
                 {selectedTask.name} - 部署日志
@@ -346,7 +346,7 @@ const Deployment = () => {
                   {logs.map((log) => (
                     <div key={log.id} className="border-b border-gray-700 pb-4 last:border-b-0">
                       <div className="flex items-center gap-3 mb-2">
-                        <span className="text-blue-400 font-medium">{log.host}</span>
+                        <span className="text-gray-400 font-medium">{log.host}</span>
                         <div className="flex items-center gap-2">
                           {getStatusIcon(log.status)}
                           <span className="text-sm text-gray-400">{getStatusText(log.status)}</span>

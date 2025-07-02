@@ -17,7 +17,7 @@ const defaultMenuConfig = {
     {
       id: 'hostgroups',
       path: '/hostgroups',
-      name: '主机组管理',
+      name: '主机管理',
       icon: Server,
       visible: true,
       required: true // 常驻菜单，不能隐藏
@@ -31,12 +31,12 @@ const defaultMenuConfig = {
       required: false
     },
     {
-      id: 'deployment',
-      path: '/deployment',
-      name: '项目部署',
-      icon: Rocket,
+      id: 'scripts',
+      path: '/scripts',
+      name: 'Shell管理',
+      icon: FileText,
       visible: true,
-      required: false
+      required: true // 常驻菜单，不能隐藏
     },
     {
       id: 'ansible',
@@ -47,18 +47,18 @@ const defaultMenuConfig = {
       required: true // 常驻菜单，不能隐藏
     },
     {
-      id: 'scripts',
-      path: '/scripts',
-      name: 'Shell管理',
-      icon: FileText,
-      visible: true,
-      required: true // 常驻菜单，不能隐藏
-    },
-    {
       id: 'docker-templates',
       path: '/docker-templates',
       name: 'Docker模板',
       icon: Package,
+      visible: true,
+      required: false
+    },
+    {
+      id: 'deployment',
+      path: '/deployment',
+      name: '项目部署',
+      icon: Rocket,
       visible: true,
       required: false
     }

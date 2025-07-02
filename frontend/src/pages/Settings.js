@@ -34,7 +34,7 @@ const Settings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-8">
+    <div className="min-h-screen bg-background text-white p-8">
       <div className="max-w-4xl mx-auto">
         {/* 页面标题 */}
         <div className="mb-8">
@@ -44,7 +44,7 @@ const Settings = () => {
 
         {/* 标签页 */}
         <div className="mb-8">
-          <div className="flex space-x-1 bg-gray-900 p-1 rounded-lg w-fit">
+          <div className="flex space-x-1 bg-card p-1 rounded-lg w-fit">
             <button
               onClick={() => setActiveTab('menu')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -76,7 +76,7 @@ const Settings = () => {
               <h2 className="text-xl font-semibold">菜单管理</h2>
               <button
                 onClick={handleReset}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-card hover:bg-background-secondary rounded-lg transition-colors border border-border"
               >
                 <RotateCcw className="w-4 h-4" />
                 重置默认
@@ -84,7 +84,7 @@ const Settings = () => {
             </div>
 
             {/* 说明文字 */}
-            <div className="bg-gray-900 p-4 rounded-lg">
+            <div className="bg-card p-4 rounded-lg border border-border">
               <p className="text-gray-300 text-sm">
                 • 拖拽菜单项可以调整显示顺序
                 • 点击眼睛图标可以显示/隐藏菜单项
@@ -94,7 +94,7 @@ const Settings = () => {
             </div>
 
             {/* 拖拽菜单列表 */}
-            <div className="bg-gray-900 rounded-lg p-6">
+            <div className="bg-card rounded-lg p-6 border border-border">
               <DragDropContext onDragEnd={handleDragEnd}>
                 <Droppable droppableId="menu-items">
                   {(provided) => (
@@ -117,10 +117,10 @@ const Settings = () => {
                               <div
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
-                                className={`flex items-center gap-4 p-4 bg-gray-800 rounded-lg border transition-all ${
+                                className={`flex items-center gap-4 p-4 bg-background-secondary rounded-lg border transition-all ${
                                   snapshot.isDragging
                                     ? 'border-white shadow-lg'
-                                    : 'border-gray-700'
+                                    : 'border-border'
                                 } ${
                                   !item.visible ? 'opacity-50' : ''
                                 }`}
@@ -185,7 +185,7 @@ const Settings = () => {
         {activeTab === 'system' && (
           <div className="space-y-6">
             <h2 className="text-xl font-semibold">系统配置</h2>
-            <div className="bg-gray-900 rounded-lg p-6">
+            <div className="bg-card rounded-lg p-6 border border-border">
               <p className="text-gray-400">系统配置功能开发中...</p>
             </div>
           </div>
