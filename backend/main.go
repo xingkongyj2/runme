@@ -62,7 +62,7 @@ func main() {
 				hostRoutes.DELETE("/:id", handlers.DeleteHost)
 			}
 
-			// 终端路由
+			// 终端路由 - 只支持主机ID
 			api.GET("/terminal/:hostId", handlers.HandleSSHTerminalByHostID)
 
 			// 脚本相关路由
@@ -77,18 +77,6 @@ func main() {
 			api.GET("/scripts/:id/logs", handlers.GetExecutionLogs)
 
 			// Ansible相关路由
-			api.GET("/ansible", handlers.GetAnsiblePlaybooks)
-			api.POST("/ansible", handlers.CreateAnsiblePlaybook)
-			api.PUT("/ansible/:id", handlers.UpdateAnsiblePlaybook)
-			api.DELETE("/ansible/:id", handlers.DeleteAnsiblePlaybook)
-			api.POST("/ansible/:id/execute", handlers.ExecuteAnsiblePlaybook)
-			api.POST("/ansible/:id/execute-experimental", handlers.ExecuteAnsiblePlaybookExperimental)
-			api.POST("/ansible/:id/continue-execution", handlers.ContinueAnsibleExecution)
-			api.GET("/ansible/:id/sessions", handlers.GetAnsibleExecutionSessions)
-			api.GET("/ansible/:id/logs", handlers.GetAnsibleExecutionLogs)
-			// SSH终端路由
-			api.GET("/terminal/:hostGroupId", handlers.HandleSSHTerminal)
-			// Ansible路由
 			ansible := api.Group("/ansible")
 			{
 				ansible.GET("", handlers.GetAnsiblePlaybooks)
@@ -96,6 +84,8 @@ func main() {
 				ansible.PUT("/:id", handlers.UpdateAnsiblePlaybook)
 				ansible.DELETE("/:id", handlers.DeleteAnsiblePlaybook)
 				ansible.POST("/:id/execute", handlers.ExecuteAnsiblePlaybook)
+				ansible.POST("/:id/execute-experimental", handlers.ExecuteAnsiblePlaybookExperimental)
+				ansible.POST("/:id/continue-execution", handlers.ContinueAnsibleExecution)
 				ansible.GET("/:id/sessions", handlers.GetAnsibleExecutionSessions)
 				ansible.GET("/:id/logs", handlers.GetAnsibleExecutionLogs)
 			}
@@ -116,6 +106,7 @@ func main() {
 				deployment.GET("/:id/logs", handlers.GetDeploymentLogs)
 				deployment.DELETE("/:id", handlers.DeleteDeploymentTask)
 			}
+
 			// AI建议路由
 			api.POST("/ai/script-suggestion", handlers.GenerateScriptSuggestion)
 		}

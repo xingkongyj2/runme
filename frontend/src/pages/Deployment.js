@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Play, Trash2, Eye, RefreshCw, GitBranch, Server, Clock, CheckCircle, XCircle, Loader } from 'lucide-react';
+import { deploymentAPI, hostGroupAPI } from '../services/api';
 
 const Deployment = () => {
   const [tasks, setTasks] = useState([]);
@@ -24,9 +25,8 @@ const Deployment = () => {
 
   const fetchTasks = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/deployment');
-      const data = await response.json();
-      setTasks(data || []);
+      const response = await deploymentAPI.getAll();
+      setTasks(response.data || []);
     } catch (error) {
       console.error('Failed to fetch tasks:', error);
     }
@@ -34,9 +34,8 @@ const Deployment = () => {
 
   const fetchHostGroups = async () => {
     try {
-      const response = await fetch('http://localhost:8080/api/hostgroups');
-      const data = await response.json();
-      setHostGroups(data || []);
+      const response = await hostGroupAPI.getAll();
+      setHostGroups(response.data || []);
     } catch (error) {
       console.error('Failed to fetch host groups:', error);
     }
@@ -50,27 +49,16 @@ const Deployment = () => {
 
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:8080/api/deployment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newTask),
+      await deploymentAPI.create(newTask);
+      setShowCreateModal(false);
+      setNewTask({
+        name: '',
+        github_url: '',
+        branch: 'main',
+        host_group_id: '',
+        description: ''
       });
-
-      if (response.ok) {
-        setShowCreateModal(false);
-        setNewTask({
-          name: '',
-          github_url: '',
-          branch: 'main',
-          host_group_id: '',
-          description: ''
-        });
-        fetchTasks();
-      } else {
-        alert('创建任务失败');
-      }
+      fetchTasks();
     } catch (error) {
       console.error('Failed to create task:', error);
       alert('创建任务失败');
@@ -82,16 +70,9 @@ const Deployment = () => {
   const executeTask = async (taskId) => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:8080/api/deployment/${taskId}/execute`, {
-        method: 'POST',
-      });
-
-      if (response.ok) {
-        alert('部署已开始，请查看日志了解进度');
-        fetchTasks();
-      } else {
-        alert('启动部署失败');
-      }
+      await deploymentAPI.execute(taskId);
+      alert('部署已开始，请查看日志了解进度');
+      fetchTasks();
     } catch (error) {
       console.error('Failed to execute task:', error);
       alert('启动部署失败');
@@ -106,15 +87,8 @@ const Deployment = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:8080/api/deployment/${taskId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        fetchTasks();
-      } else {
-        alert('删除任务失败');
-      }
+      await deploymentAPI.delete(taskId);
+      fetchTasks();
     } catch (error) {
       console.error('Failed to delete task:', error);
       alert('删除任务失败');
@@ -124,9 +98,8 @@ const Deployment = () => {
   const viewLogs = async (task) => {
     try {
       setSelectedTask(task);
-      const response = await fetch(`http://localhost:8080/api/deployment/${task.id}/logs`);
-      const data = await response.json();
-      setLogs(data || []);
+      const response = await deploymentAPI.getLogs(task.id);
+      setLogs(response.data || []);
       setShowLogsModal(true);
     } catch (error) {
       console.error('Failed to fetch logs:', error);

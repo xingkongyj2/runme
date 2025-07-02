@@ -105,4 +105,12 @@ export const aiAPI = {
     api.post('/ai/script-suggestion', { requirement, type })
 };
 
+export const deploymentAPI = {
+  getAll: () => api.get('/deployment'),
+  create: (data) => api.post('/deployment', data),
+  execute: (id) => api.post(`/deployment/${id}/execute`),
+  delete: (id) => api.delete(`/deployment/${id}`),
+  getLogs: (id) => api.get(`/deployment/${id}/logs`)
+};
+
 export default api;

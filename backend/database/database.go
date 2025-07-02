@@ -23,11 +23,25 @@ func InitDB() {
 	}
 
 	createAnsibleTables()
-	migrateDatabase() // 新增数据库迁移
+	migrateDatabase()    // 新增数据库迁移
+	createDefaultAdmin() // 创建默认管理员账户
 	log.Println("Database initialized successfully")
 }
 
 func createTables() {
+	// 创建用户表
+	usersTable := `
+	CREATE TABLE IF NOT EXISTS users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		username TEXT NOT NULL UNIQUE,
+		password TEXT NOT NULL,
+		email TEXT NOT NULL,
+		role TEXT NOT NULL DEFAULT 'user',
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+	`
+
 	// 创建主机组表
 	hostGroupTable := `
 	CREATE TABLE IF NOT EXISTS host_groups (
@@ -93,7 +107,7 @@ func createTables() {
 	);
 	`
 
-	tables := []string{hostGroupTable, hostTable, scriptTable, executionLogTable, executionSessionTable}
+	tables := []string{usersTable, hostGroupTable, hostTable, scriptTable, executionLogTable, executionSessionTable}
 	for _, table := range tables {
 		if _, err := DB.Exec(table); err != nil {
 			log.Fatal("Failed to create table:", err)

@@ -73,14 +73,13 @@ const TerminalComponent = ({ hostId, hostIP, onClose, fullscreen = false }) => {
         terminal.current.dispose();
       }
     };
-  }, [hostGroupId, hostIP]);
+  }, [hostId, hostIP, connectWebSocket]);
 
   const connectWebSocket = () => {
     if (!hostId) return;
 
     // 使用主机ID建立WebSocket连接
     const wsUrl = `ws://localhost:8080/api/terminal/${hostId}`;
-    const ws = new WebSocket(wsUrl);
     
     websocket.current = new WebSocket(wsUrl);
 
