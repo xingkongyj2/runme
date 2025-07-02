@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Play, FileText, Calendar } from 'lucide-react';
+import { Plus, Edit, Trash2, Play, FileText, Calendar, AlertTriangle, Sparkles } from 'lucide-react';
 import { scriptAPI, hostGroupAPI } from '../services/api';
 import Modal from '../components/Modal';
 import LogModal from '../components/LogModal';
+import ExperimentalModal from '../components/ExperimentalModal';
+import AISuggestionModal from '../components/AISuggestionModal';
 
 const Scripts = () => {
   const [scripts, setScripts] = useState([]);
@@ -10,8 +12,12 @@ const Scripts = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showLogModal, setShowLogModal] = useState(false);
+  const [showExperimentalModal, setShowExperimentalModal] = useState(false);
+  const [showAISuggestionModal, setShowAISuggestionModal] = useState(false);
+  const [experimentalResult, setExperimentalResult] = useState(null);
   const [editingScript, setEditingScript] = useState(null);
   const [selectedScript, setSelectedScript] = useState(null);
+  const [experimentalMode, setExperimentalMode] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     content: '',
@@ -89,13 +95,26 @@ const Scripts = () => {
   };
 
   const handleExecute = async (script) => {
-    if (window.confirm(`确定要执行脚本 "${script.name}" 吗？`)) {
-      try {
-        await scriptAPI.execute(script.id);
-        alert('脚本执行已启动，请查看日志了解执行结果');
-      } catch (error) {
-        console.error('Failed to execute script:', error);
-        alert('执行失败');
+    if (experimentalMode) {
+      if (window.confirm(`确定要在实验主机模式下执行脚本 "${script.name}" 吗？\n\n系统将随机选择一台主机进行测试，确认无问题后再继续执行剩余主机。`)) {
+        try {
+          const response = await scriptAPI.executeExperimental(script.id);
+          setExperimentalResult(response.data);
+          setShowExperimentalModal(true);
+        } catch (error) {
+          console.error('Failed to execute script in experimental mode:', error);
+          alert('实验模式执行失败');
+        }
+      }
+    } else {
+      if (window.confirm(`确定要执行脚本 "${script.name}" 吗？`)) {
+        try {
+          await scriptAPI.execute(script.id);
+          alert('脚本执行已启动，请查看日志了解执行结果');
+        } catch (error) {
+          console.error('Failed to execute script:', error);
+          alert('执行失败');
+        }
       }
     }
   };
@@ -110,6 +129,30 @@ const Scripts = () => {
     return group ? group.name : '未知主机组';
   };
 
+  const handleContinueExecution = async () => {
+    try {
+      await scriptAPI.continueExecution(experimentalResult.experimental_result.script_id || selectedScript?.id, {
+        session_name: experimentalResult.session_name,
+        remaining_hosts: experimentalResult.remaining_hosts
+      });
+      setShowExperimentalModal(false);
+      setExperimentalResult(null);
+      alert('剩余主机执行已启动，请查看日志了解执行结果');
+    } catch (error) {
+      console.error('Failed to continue execution:', error);
+      alert('继续执行失败');
+    }
+  };
+
+  const handleAISuggestion = (suggestion) => {
+    setFormData({
+      ...formData,
+      name: suggestion.name,
+      content: suggestion.content
+    });
+    setShowAISuggestionModal(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -121,7 +164,23 @@ const Scripts = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-foreground">Shell管理</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-foreground">Shell管理</h1>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={experimentalMode}
+                onChange={(e) => setExperimentalMode(e.target.checked)}
+                className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
+              />
+              <span className="text-sm text-foreground flex items-center gap-1">
+                <AlertTriangle size={14} className={experimentalMode ? 'text-orange-500' : 'text-gray-400'} />
+                实验主机模式
+              </span>
+            </label>
+          </div>
+        </div>
         <button 
           className="btn-primary flex items-center gap-2"
           onClick={() => {
@@ -135,6 +194,17 @@ const Scripts = () => {
         </button>
       </div>
 
+      {experimentalMode && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 dark:bg-orange-900/20 dark:border-orange-800">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} className="text-orange-500" />
+            <span className="text-sm text-orange-700 dark:text-orange-300">
+              实验主机模式已启用：执行脚本时将先在随机选择的主机上测试，确认无问题后再继续执行剩余主机。
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {scripts.map((script) => (
           <div key={script.id} className="bg-card rounded-xl border border-border p-6 hover:shadow-lg transition-shadow">
@@ -147,11 +217,15 @@ const Scripts = () => {
               </div>
               <div className="flex items-center gap-1">
                 <button 
-                  className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20"
+                  className={`p-2 rounded-lg transition-colors ${
+                    experimentalMode 
+                      ? 'text-orange-600 hover:text-orange-800 hover:bg-orange-50 dark:text-orange-400 dark:hover:text-orange-300 dark:hover:bg-orange-900/20'
+                      : 'text-green-600 hover:text-green-800 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20'
+                  }`}
                   onClick={() => handleExecute(script)}
-                  title="执行脚本"
+                  title={experimentalMode ? "实验模式执行脚本" : "执行脚本"}
                 >
-                  <Play size={16} />
+                  {experimentalMode ? <AlertTriangle size={16} /> : <Play size={16} />}
                 </button>
                 <button 
                   className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20"
@@ -190,7 +264,6 @@ const Scripts = () => {
         ))}
       </div>
 
-      {/* 新增/编辑脚本模态框 */}
       <Modal 
         isOpen={showModal} 
         onClose={() => setShowModal(false)}
@@ -198,7 +271,17 @@ const Scripts = () => {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">脚本名称</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-foreground">脚本名称</label>
+              <button
+                type="button"
+                onClick={() => setShowAISuggestionModal(true)}
+                className="text-sm text-primary hover:text-primary-dark flex items-center gap-1"
+              >
+                <Sparkles size={14} />
+                AI建议
+              </button>
+            </div>
             <input
               type="text"
               className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -248,11 +331,28 @@ const Scripts = () => {
         </form>
       </Modal>
 
-      {/* 日志查看模态框 */}
       <LogModal 
         show={showLogModal}
         onClose={() => setShowLogModal(false)}
         script={selectedScript}
+      />
+      
+      <ExperimentalModal 
+        show={showExperimentalModal}
+        onClose={() => {
+          setShowExperimentalModal(false);
+          setExperimentalResult(null);
+        }}
+        onContinue={handleContinueExecution}
+        experimentalResult={experimentalResult}
+        type="script"
+      />
+
+      <AISuggestionModal
+        show={showAISuggestionModal}
+        onClose={() => setShowAISuggestionModal(false)}
+        onApply={handleAISuggestion}
+        type="shell"
       />
     </div>
   );

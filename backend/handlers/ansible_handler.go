@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"runme-backend/database"
@@ -199,6 +200,74 @@ func ExecuteAnsiblePlaybook(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Playbook execution started", "session_name": sessionName})
 }
 
+// ContinueAnsibleExecution 继续执行剩余主机的Ansible Playbook
+func ContinueAnsibleExecution(c *gin.Context) {
+	playbookID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid playbook ID"})
+		return
+	}
+
+	var requestBody struct {
+		SessionName    string   `json:"session_name"`
+		RemainingHosts []string `json:"remaining_hosts"`
+	}
+
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 获取playbook和主机组信息
+	var playbook models.AnsiblePlaybook
+	var hostGroup models.HostGroup
+	err = database.DB.QueryRow(`
+		SELECT ap.id, ap.name, ap.content, ap.variables, ap.host_group_id, hg.username, hg.password, hg.port
+		FROM ansible_playbooks ap
+		JOIN host_groups hg ON ap.host_group_id = hg.id
+		WHERE ap.id = ?
+	`, playbookID).Scan(&playbook.ID, &playbook.Name, &playbook.Content, &playbook.Variables, &playbook.HostGroupID, &hostGroup.Username, &hostGroup.Password, &hostGroup.Port)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Playbook not found"})
+		return
+	}
+
+	// 异步执行剩余主机
+	go func() {
+		for _, host := range requestBody.RemainingHosts {
+			log := models.AnsibleExecutionLog{
+				PlaybookID: playbookID,
+				Host:       host,
+				ExecutedAt: time.Now(),
+			}
+
+			output, err := services.ExecuteAnsiblePlaybook(host, hostGroup.Username, hostGroup.Password, hostGroup.Port, playbook.Content, playbook.Variables)
+			if err != nil {
+				log.Status = "failed"
+				log.Error = err.Error()
+			} else {
+				log.Status = "success"
+				log.Output = output
+			}
+
+			// 保存执行日志
+			_, err = database.DB.Exec(
+				"INSERT INTO ansible_execution_logs (playbook_id, host, status, output, error, executed_at) VALUES (?, ?, ?, ?, ?, ?)",
+				log.PlaybookID, log.Host, log.Status, log.Output, log.Error, log.ExecutedAt,
+			)
+			if err != nil {
+				fmt.Printf("Failed to save execution log: %v\n", err)
+			}
+		}
+	}()
+
+	c.JSON(http.StatusOK, gin.H{
+		"session_name": requestBody.SessionName,
+		"message":      "剩余主机执行已启动",
+	})
+}
+
 // GetAnsibleExecutionSessions 获取Ansible执行会话
 func GetAnsibleExecutionSessions(c *gin.Context) {
 	playbookID, err := strconv.Atoi(c.Param("id"))
@@ -299,4 +368,108 @@ func GetAnsibleExecutionLogs(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, logs)
+}
+
+// ExecuteAnsiblePlaybookExperimental 实验性执行Ansible Playbook（先在随机主机上测试）
+func ExecuteAnsiblePlaybookExperimental(c *gin.Context) {
+	playbookID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid playbook ID"})
+		return
+	}
+
+	// 获取playbook和主机组信息
+	var playbook models.AnsiblePlaybook
+	var hostGroup models.HostGroup
+	err = database.DB.QueryRow(`
+		SELECT ap.id, ap.name, ap.content, ap.variables, ap.host_group_id, hg.username, hg.password, hg.port, hg.hosts
+		FROM ansible_playbooks ap
+		JOIN host_groups hg ON ap.host_group_id = hg.id
+		WHERE ap.id = ?
+	`, playbookID).Scan(&playbook.ID, &playbook.Name, &playbook.Content, &playbook.Variables, &playbook.HostGroupID, &hostGroup.Username, &hostGroup.Password, &hostGroup.Port, &hostGroup.Hosts)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Playbook not found"})
+		return
+	}
+
+	// 解析主机列表
+	hosts := strings.Split(hostGroup.Hosts, "\n")
+	var validHosts []string
+	for _, host := range hosts {
+		host = strings.TrimSpace(host)
+		if host != "" {
+			validHosts = append(validHosts, host)
+		}
+	}
+
+	if len(validHosts) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No valid hosts found"})
+		return
+	}
+
+	if len(validHosts) == 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Only one host available, experimental mode not applicable"})
+		return
+	}
+
+	// 随机选择一个实验主机
+	rand.Seed(time.Now().UnixNano())
+	experimentalHostIndex := rand.Intn(len(validHosts))
+	experimentalHost := validHosts[experimentalHostIndex]
+
+	// 创建剩余主机列表
+	remainingHosts := make([]string, 0, len(validHosts)-1)
+	for i, host := range validHosts {
+		if i != experimentalHostIndex {
+			remainingHosts = append(remainingHosts, host)
+		}
+	}
+
+	// 创建执行会话
+	sessionName := fmt.Sprintf("%s_experimental_%d", playbook.Name, time.Now().Unix())
+	_, err = database.DB.Exec(
+		"INSERT INTO ansible_execution_sessions (playbook_id, session_name, created_at) VALUES (?, ?, ?)",
+		playbookID, sessionName, time.Now(),
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create execution session"})
+		return
+	}
+
+	// 在实验主机上执行playbook
+	log := models.AnsibleExecutionLog{
+		PlaybookID: playbookID,
+		Host:       experimentalHost,
+		ExecutedAt: time.Now(),
+	}
+
+	output, err := services.ExecuteAnsiblePlaybook(experimentalHost, hostGroup.Username, hostGroup.Password, hostGroup.Port, playbook.Content, playbook.Variables)
+	if err != nil {
+		log.Status = "failed"
+		log.Error = err.Error()
+	} else {
+		log.Status = "success"
+		log.Output = output
+	}
+
+	// 保存执行日志
+	_, err = database.DB.Exec(
+		"INSERT INTO ansible_execution_logs (playbook_id, host, status, output, error, executed_at) VALUES (?, ?, ?, ?, ?, ?)",
+		log.PlaybookID, log.Host, log.Status, log.Output, log.Error, log.ExecutedAt,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save execution log"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"session_name":      sessionName,
+		"experimental_host": experimentalHost,
+		"status":            log.Status,
+		"output":            log.Output,
+		"error":             log.Error,
+		"remaining_hosts":   remainingHosts,
+		"message":           "实验性执行完成",
+	})
 }

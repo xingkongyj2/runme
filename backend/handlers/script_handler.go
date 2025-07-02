@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"runme-backend/database"
@@ -213,7 +214,7 @@ func GetExecutionLogs(c *gin.Context) {
 		decodedSessionName = sessionName // 如果解码失败，使用原始值
 	}
 
-	fmt.Printf("[DEBUG] GetExecutionLogs - scriptID: %d, original sessionName: %s, decoded: %s\n", 
+	fmt.Printf("[DEBUG] GetExecutionLogs - scriptID: %d, original sessionName: %s, decoded: %s\n",
 		scriptID, sessionName, decodedSessionName)
 
 	if sessionName == "" {
@@ -229,7 +230,7 @@ func GetExecutionLogs(c *gin.Context) {
 	// 获取会话ID
 	var sessionID int
 	err = database.DB.QueryRow(
-		"SELECT id FROM execution_sessions WHERE script_id = ? AND session_name = ?", 
+		"SELECT id FROM execution_sessions WHERE script_id = ? AND session_name = ?",
 		scriptID, decodedSessionName).Scan(&sessionID)
 	if err != nil {
 		fmt.Printf("[DEBUG] Session not found - scriptID: %d, sessionName: '%s', error: %v\n", scriptID, sessionName, err)
@@ -333,4 +334,175 @@ func DeleteScript(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Script deleted successfully"})
+}
+
+// ExecuteScriptExperimental 实验主机模式执行脚本
+func ExecuteScriptExperimental(c *gin.Context) {
+	scriptID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid script ID"})
+		return
+	}
+
+	// 获取脚本和主机组信息
+	var script models.Script
+	var hostGroup models.HostGroup
+	err = database.DB.QueryRow(`
+		SELECT s.id, s.name, s.content, s.host_group_id, hg.username, hg.password, hg.hosts
+		FROM scripts s
+		JOIN host_groups hg ON s.host_group_id = hg.id
+		WHERE s.id = ?
+	`, scriptID).Scan(&script.ID, &script.Name, &script.Content, &script.HostGroupID, &hostGroup.Username, &hostGroup.Password, &hostGroup.Hosts)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Script not found"})
+		return
+	}
+
+	// 解析主机列表
+	hosts := strings.Split(hostGroup.Hosts, "\n")
+	var validHosts []string
+	for _, host := range hosts {
+		host = strings.TrimSpace(host)
+		if host != "" {
+			validHosts = append(validHosts, host)
+		}
+	}
+
+	if len(validHosts) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No valid hosts found"})
+		return
+	}
+
+	if len(validHosts) == 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Experimental mode requires at least 2 hosts"})
+		return
+	}
+
+	// 随机选择一台实验主机
+	rand.Seed(time.Now().UnixNano())
+	experimentalHostIndex := rand.Intn(len(validHosts))
+	experimentalHost := validHosts[experimentalHostIndex]
+	remainingHosts := make([]string, 0, len(validHosts)-1)
+	for i, host := range validHosts {
+		if i != experimentalHostIndex {
+			remainingHosts = append(remainingHosts, host)
+		}
+	}
+
+	// 创建执行会话
+	sessionName := fmt.Sprintf("%s_experimental_%s", script.Name, time.Now().Format("2006-01-02_15:04:05"))
+	sessionResult, err := database.DB.Exec(
+		"INSERT INTO execution_sessions (script_id, session_name, created_at) VALUES (?, ?, ?)",
+		scriptID, sessionName, time.Now(),
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create execution session"})
+		return
+	}
+
+	// 先在实验主机上执行
+	fmt.Printf("[DEBUG] Executing on experimental host: %s\n", experimentalHost)
+	experimentalResults := services.ExecuteScriptOnHosts([]string{experimentalHost}, hostGroup.Username, hostGroup.Password, script.Content)
+
+	if len(experimentalResults) == 0 || experimentalResults[0].Status != "success" {
+		// 实验主机执行失败，保存日志并返回
+		for _, result := range experimentalResults {
+			_, err := database.DB.Exec(
+				"INSERT INTO execution_logs (script_id, host, status, output, error, executed_at) VALUES (?, ?, ?, ?, ?, ?)",
+				scriptID, result.Host, result.Status, result.Output, result.Error, time.Now(),
+			)
+			if err != nil {
+				fmt.Printf("[DEBUG] Failed to save execution log for host %s: %v\n", result.Host, err)
+			}
+		}
+
+		sessionID, _ := sessionResult.LastInsertId()
+		c.JSON(http.StatusOK, gin.H{
+			"session_id":          sessionID,
+			"session_name":        sessionName,
+			"experimental_host":   experimentalHost,
+			"experimental_result": experimentalResults[0],
+			"status":              "experimental_failed",
+			"message":             "实验主机执行失败，已停止后续执行",
+		})
+		return
+	}
+
+	// 实验主机执行成功，保存日志
+	for _, result := range experimentalResults {
+		_, err := database.DB.Exec(
+			"INSERT INTO execution_logs (script_id, host, status, output, error, executed_at) VALUES (?, ?, ?, ?, ?, ?)",
+			scriptID, result.Host, result.Status, result.Output, result.Error, time.Now(),
+		)
+		if err != nil {
+			fmt.Printf("[DEBUG] Failed to save execution log for host %s: %v\n", result.Host, err)
+		}
+	}
+
+	sessionID, _ := sessionResult.LastInsertId()
+	c.JSON(http.StatusOK, gin.H{
+		"session_id":          sessionID,
+		"session_name":        sessionName,
+		"experimental_host":   experimentalHost,
+		"experimental_result": experimentalResults[0],
+		"remaining_hosts":     remainingHosts,
+		"status":              "experimental_success",
+		"message":             "实验主机执行成功，可以继续执行剩余主机",
+	})
+}
+
+// ContinueScriptExecution 继续执行剩余主机
+func ContinueScriptExecution(c *gin.Context) {
+	scriptID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid script ID"})
+		return
+	}
+
+	var requestBody struct {
+		SessionName    string   `json:"session_name"`
+		RemainingHosts []string `json:"remaining_hosts"`
+	}
+
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 获取脚本和主机组信息
+	var script models.Script
+	var hostGroup models.HostGroup
+	err = database.DB.QueryRow(`
+		SELECT s.id, s.name, s.content, s.host_group_id, hg.username, hg.password
+		FROM scripts s
+		JOIN host_groups hg ON s.host_group_id = hg.id
+		WHERE s.id = ?
+	`, scriptID).Scan(&script.ID, &script.Name, &script.Content, &script.HostGroupID, &hostGroup.Username, &hostGroup.Password)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Script not found"})
+		return
+	}
+
+	// 在剩余主机上执行脚本
+	fmt.Printf("[DEBUG] Continuing execution on %d remaining hosts\n", len(requestBody.RemainingHosts))
+	results := services.ExecuteScriptOnHosts(requestBody.RemainingHosts, hostGroup.Username, hostGroup.Password, script.Content)
+
+	// 保存执行日志
+	for _, result := range results {
+		_, err := database.DB.Exec(
+			"INSERT INTO execution_logs (script_id, host, status, output, error, executed_at) VALUES (?, ?, ?, ?, ?, ?)",
+			scriptID, result.Host, result.Status, result.Output, result.Error, time.Now(),
+		)
+		if err != nil {
+			fmt.Printf("[DEBUG] Failed to save execution log for host %s: %v\n", result.Host, err)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"session_name": requestBody.SessionName,
+		"results":      results,
+		"message":      "剩余主机执行完成",
+	})
 }

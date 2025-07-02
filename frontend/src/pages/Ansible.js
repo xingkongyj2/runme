@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Play, Settings, Calendar } from 'lucide-react';
+import { Plus, Edit, Trash2, Play, Settings, Calendar, AlertTriangle, Sparkles } from 'lucide-react';
 import { ansibleAPI, hostGroupAPI } from '../services/api';
 import Modal from '../components/Modal';
 import LogModal from '../components/LogModal';
+import ExperimentalModal from '../components/ExperimentalModal';
+import AISuggestionModal from '../components/AISuggestionModal';
 
 const Ansible = () => {
   const [playbooks, setPlaybooks] = useState([]);
@@ -10,8 +12,12 @@ const Ansible = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showLogModal, setShowLogModal] = useState(false);
+  const [showExperimentalModal, setShowExperimentalModal] = useState(false);
+  const [showAISuggestionModal, setShowAISuggestionModal] = useState(false); // 添加缺少的状态
+  const [experimentalResult, setExperimentalResult] = useState(null);
   const [editingPlaybook, setEditingPlaybook] = useState(null);
   const [selectedPlaybook, setSelectedPlaybook] = useState(null);
+  const [experimentalMode, setExperimentalMode] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     content: '',
@@ -91,13 +97,26 @@ const Ansible = () => {
   };
 
   const handleExecute = async (playbook) => {
-    if (window.confirm(`确定要执行Ansible Playbook "${playbook.name}" 吗？`)) {
-      try {
-        await ansibleAPI.execute(playbook.id);
-        alert('Ansible Playbook执行已启动，请查看日志了解执行结果');
-      } catch (error) {
-        console.error('Failed to execute playbook:', error);
-        alert('执行失败');
+    if (experimentalMode) {
+      if (window.confirm(`确定要在实验主机模式下执行Ansible Playbook "${playbook.name}" 吗？\n\n系统将随机选择一台主机进行测试，确认无问题后再继续执行剩余主机。`)) {
+        try {
+          const response = await ansibleAPI.executeExperimental(playbook.id);
+          setExperimentalResult(response.data);
+          setShowExperimentalModal(true);
+        } catch (error) {
+          console.error('Failed to execute playbook in experimental mode:', error);
+          alert('实验模式执行失败');
+        }
+      }
+    } else {
+      if (window.confirm(`确定要执行Ansible Playbook "${playbook.name}" 吗？`)) {
+        try {
+          await ansibleAPI.execute(playbook.id);
+          alert('Ansible Playbook执行已启动，请查看日志了解执行结果');
+        } catch (error) {
+          console.error('Failed to execute playbook:', error);
+          alert('执行失败');
+        }
       }
     }
   };
@@ -112,6 +131,30 @@ const Ansible = () => {
     return group ? group.name : '未知主机组';
   };
 
+  const handleContinueExecution = async () => {
+    try {
+      await ansibleAPI.continueExecution(experimentalResult.experimental_result.playbook_id || selectedPlaybook?.id, {
+        session_name: experimentalResult.session_name,
+        remaining_hosts: experimentalResult.remaining_hosts
+      });
+      setShowExperimentalModal(false);
+      setExperimentalResult(null);
+      alert('剩余主机执行已启动，请查看日志了解执行结果');
+    } catch (error) {
+      console.error('Failed to continue execution:', error);
+      alert('继续执行失败');
+    }
+  };
+
+  // 移动到组件内部
+  const handleAISuggestion = (suggestion) => {
+    setFormData({
+      ...formData,
+      name: suggestion.name,
+      content: suggestion.content
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -123,7 +166,23 @@ const Ansible = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-foreground">Ansible管理</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-foreground">Ansible管理</h1>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={experimentalMode}
+                onChange={(e) => setExperimentalMode(e.target.checked)}
+                className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
+              />
+              <span className="text-sm text-foreground flex items-center gap-1">
+                <AlertTriangle size={14} className={experimentalMode ? 'text-orange-500' : 'text-gray-400'} />
+                实验主机模式
+              </span>
+            </label>
+          </div>
+        </div>
         <button 
           className="btn-primary flex items-center gap-2"
           onClick={() => {
@@ -137,6 +196,17 @@ const Ansible = () => {
         </button>
       </div>
 
+      {experimentalMode && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 dark:bg-orange-900/20 dark:border-orange-800">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} className="text-orange-500" />
+            <span className="text-sm text-orange-700 dark:text-orange-300">
+              实验主机模式已启用：执行Playbook时将先在随机选择的主机上测试，确认无问题后再继续执行剩余主机。
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {playbooks.map((playbook) => (
           <div key={playbook.id} className="bg-card rounded-xl border border-border p-6 hover:shadow-lg transition-shadow">
@@ -149,11 +219,15 @@ const Ansible = () => {
               </div>
               <div className="flex items-center gap-1">
                 <button 
-                  className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20"
+                  className={`p-2 rounded-lg transition-colors ${
+                    experimentalMode 
+                      ? 'text-orange-600 hover:text-orange-800 hover:bg-orange-50 dark:text-orange-400 dark:hover:text-orange-300 dark:hover:bg-orange-900/20'
+                      : 'text-green-600 hover:text-green-800 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20'
+                  }`}
                   onClick={() => handleExecute(playbook)}
-                  title="执行Playbook"
+                  title={experimentalMode ? "实验模式执行Playbook" : "执行Playbook"}
                 >
-                  <Play size={16} />
+                  {experimentalMode ? <AlertTriangle size={16} /> : <Play size={16} />}
                 </button>
                 <button 
                   className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20"
@@ -200,7 +274,17 @@ const Ansible = () => {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Playbook名称</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-foreground">Playbook名称</label>
+              <button
+                type="button"
+                onClick={() => setShowAISuggestionModal(true)}
+                className="text-sm text-primary hover:text-primary-dark flex items-center gap-1"
+              >
+                <Sparkles size={14} />
+                AI建议
+              </button>
+            </div>
             <input
               type="text"
               className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -266,6 +350,26 @@ const Ansible = () => {
         show={showLogModal}
         onClose={() => setShowLogModal(false)}
         script={selectedPlaybook}
+        type="ansible"
+      />
+
+      {/* 实验主机模式结果模态框 */}
+      <ExperimentalModal 
+        show={showExperimentalModal}
+        onClose={() => {
+          setShowExperimentalModal(false);
+          setExperimentalResult(null);
+        }}
+        onContinue={handleContinueExecution}
+        experimentalResult={experimentalResult}
+        type="ansible"
+      />
+      
+      {/* AI建议模态框 - 添加缺少的组件渲染 */}
+      <AISuggestionModal 
+        show={showAISuggestionModal}
+        onClose={() => setShowAISuggestionModal(false)}
+        onApply={handleAISuggestion}
         type="ansible"
       />
     </div>

@@ -65,18 +65,27 @@ func main() {
 			// 终端路由
 			api.GET("/terminal/:hostId", handlers.HandleSSHTerminalByHostID)
 
-			// 脚本路由
-			scripts := api.Group("/scripts")
-			{
-				scripts.GET("", handlers.GetScripts)
-				scripts.POST("", handlers.CreateScript)
-				scripts.PUT("/:id", handlers.UpdateScript)
-				scripts.DELETE("/:id", handlers.DeleteScript)
-				scripts.POST("/:id/execute", handlers.ExecuteScript)
-				scripts.GET("/:id/sessions", handlers.GetExecutionSessions)
-				scripts.GET("/:id/logs", handlers.GetExecutionLogs)
-			}
+			// 脚本相关路由
+			api.GET("/scripts", handlers.GetScripts)
+			api.POST("/scripts", handlers.CreateScript)
+			api.PUT("/scripts/:id", handlers.UpdateScript)
+			api.DELETE("/scripts/:id", handlers.DeleteScript)
+			api.POST("/scripts/:id/execute", handlers.ExecuteScript)
+			api.POST("/scripts/:id/execute-experimental", handlers.ExecuteScriptExperimental)
+			api.POST("/scripts/:id/continue-execution", handlers.ContinueScriptExecution)
+			api.GET("/scripts/:id/sessions", handlers.GetExecutionSessions)
+			api.GET("/scripts/:id/logs", handlers.GetExecutionLogs)
 
+			// Ansible相关路由
+			api.GET("/ansible", handlers.GetAnsiblePlaybooks)
+			api.POST("/ansible", handlers.CreateAnsiblePlaybook)
+			api.PUT("/ansible/:id", handlers.UpdateAnsiblePlaybook)
+			api.DELETE("/ansible/:id", handlers.DeleteAnsiblePlaybook)
+			api.POST("/ansible/:id/execute", handlers.ExecuteAnsiblePlaybook)
+			api.POST("/ansible/:id/execute-experimental", handlers.ExecuteAnsiblePlaybookExperimental)
+			api.POST("/ansible/:id/continue-execution", handlers.ContinueAnsibleExecution)
+			api.GET("/ansible/:id/sessions", handlers.GetAnsibleExecutionSessions)
+			api.GET("/ansible/:id/logs", handlers.GetAnsibleExecutionLogs)
 			// SSH终端路由
 			api.GET("/terminal/:hostGroupId", handlers.HandleSSHTerminal)
 			// Ansible路由
@@ -107,6 +116,8 @@ func main() {
 				deployment.GET("/:id/logs", handlers.GetDeploymentLogs)
 				deployment.DELETE("/:id", handlers.DeleteDeploymentTask)
 			}
+			// AI建议路由
+			api.POST("/ai/script-suggestion", handlers.GenerateScriptSuggestion)
 		}
 	}
 

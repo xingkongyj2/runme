@@ -1,49 +1,27 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Server, FileText, Terminal, Settings, Package, Monitor, Rocket, User, LogOut } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Terminal, User, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useMenuConfig } from '../contexts/MenuConfigContext';
 
 const Layout = ({ children }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { getVisibleMenuItems } = useMenuConfig();
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  const menuItems = [
-    {
-      path: '/hostgroups',
-      name: '主机组管理',
-      icon: Server
-    },
-    {
-      path: '/monitoring',
-      name: '主机监控',
-      icon: Monitor
-    },
-    {
-      path: '/deployment',
-      name: '项目部署',
-      icon: Rocket
-    },
-    {
-      path: '/ansible',
-      name: 'Ansible管理',
-      icon: Settings
-    },
-    {
-      path: '/scripts',
-      name: 'Shell管理',
-      icon: FileText
-    },
-    {
-      path: '/docker-templates',
-      name: 'Docker模板',
-      icon: Package
-    }
-  ];
+  // 获取可见的菜单项
+  const visibleMenuItems = getVisibleMenuItems();
 
   const handleLogout = () => {
     logout();
     setShowUserMenu(false);
+  };
+
+  const handleSettingsClick = () => {
+    setShowUserMenu(false);
+    navigate('/settings');
   };
 
   return (
@@ -67,13 +45,13 @@ const Layout = ({ children }) => {
           {/* 菜单区域 */}
           <nav className="flex-1 p-4">
             <div className="space-y-2">
-              {menuItems.map((item) => {
+              {visibleMenuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path;
                 
                 return (
                   <Link
-                    key={item.path}
+                    key={item.id}
                     to={item.path}
                     className={`
                       flex items-center gap-3 p-3 rounded-xl transition-all duration-200 relative group
@@ -112,10 +90,10 @@ const Layout = ({ children }) => {
               {showUserMenu && (
                 <div className="absolute bottom-full left-0 right-0 mb-2 bg-black border border-gray-700 rounded-lg shadow-lg overflow-hidden">
                   <button
-                    onClick={() => setShowUserMenu(false)}
+                    onClick={handleSettingsClick}
                     className="w-full flex items-center gap-3 p-3 text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
                   >
-                    <Settings className="w-4 h-4" />
+                    <Terminal className="w-4 h-4" />
                     <span className="text-sm">系统设置</span>
                   </button>
                   <button

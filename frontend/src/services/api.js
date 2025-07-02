@@ -57,25 +57,22 @@ export const scriptAPI = {
   update: (id, data) => api.put(`/scripts/${id}`, data),
   delete: (id) => api.delete(`/scripts/${id}`),
   execute: (id) => api.post(`/scripts/${id}/execute`),
+  executeExperimental: (id) => api.post(`/scripts/${id}/execute-experimental`),
+  continueExecution: (id, data) => api.post(`/scripts/${id}/continue-execution`, data),
   getSessions: (id) => api.get(`/scripts/${id}/sessions`),
-  getLogs: (scriptId, sessionName) => {
-    const encodedSessionName = encodeURIComponent(sessionName);
-    return api.get(`/scripts/${scriptId}/logs?session_name=${encodedSessionName}`);
-  },
+  getLogs: (id, sessionName) => api.get(`/scripts/${id}/logs?session_name=${encodeURIComponent(sessionName)}`)
 };
 
-// Ansible API
 export const ansibleAPI = {
   getAll: () => api.get('/ansible'),
   create: (data) => api.post('/ansible', data),
   update: (id, data) => api.put(`/ansible/${id}`, data),
   delete: (id) => api.delete(`/ansible/${id}`),
   execute: (id) => api.post(`/ansible/${id}/execute`),
+  executeExperimental: (id) => api.post(`/ansible/${id}/execute-experimental`),
+  continueExecution: (id, data) => api.post(`/ansible/${id}/continue-execution`, data),
   getSessions: (id) => api.get(`/ansible/${id}/sessions`),
-  getLogs: (playbookId, sessionName) => {
-    const encodedSessionName = encodeURIComponent(sessionName);
-    return api.get(`/ansible/${playbookId}/logs?session_name=${encodedSessionName}`);
-  },
+  getLogs: (id, sessionName) => api.get(`/ansible/${id}/logs?session_name=${encodeURIComponent(sessionName)}`)
 };
 
 // 主机API
@@ -100,6 +97,12 @@ export const hostAPI = {
 export const monitoringAPI = {
   getSystemInfo: (groupId) => api.get(`/monitoring/system/${groupId}`),
   getProcessInfo: (groupId) => api.get(`/monitoring/processes/${groupId}`),
+};
+
+// AI建议API
+export const aiAPI = {
+  generateScriptSuggestion: (requirement, type) => 
+    api.post('/ai/script-suggestion', { requirement, type })
 };
 
 export default api;
