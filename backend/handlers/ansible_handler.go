@@ -9,7 +9,6 @@ import (
 	"runme-backend/models"
 	"runme-backend/services"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -126,32 +125,38 @@ func ExecuteAnsiblePlaybook(c *gin.Context) {
 		return
 	}
 
-	// 获取playbook和主机组信息
+	// 获取playbook信息
 	var playbook models.AnsiblePlaybook
-	var hostGroup models.HostGroup
 	err = database.DB.QueryRow(`
-		SELECT ap.id, ap.name, ap.content, ap.variables, ap.host_group_id, hg.username, hg.password, hg.port, hg.hosts
-		FROM ansible_playbooks ap
-		JOIN host_groups hg ON ap.host_group_id = hg.id
-		WHERE ap.id = ?
-	`, playbookID).Scan(&playbook.ID, &playbook.Name, &playbook.Content, &playbook.Variables, &playbook.HostGroupID, &hostGroup.Username, &hostGroup.Password, &hostGroup.Port, &hostGroup.Hosts)
+		SELECT id, name, content, variables, host_group_id
+		FROM ansible_playbooks
+		WHERE id = ?
+	`, playbookID).Scan(&playbook.ID, &playbook.Name, &playbook.Content, &playbook.Variables, &playbook.HostGroupID)
 
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Playbook not found"})
 		return
 	}
 
-	// 解析主机列表
-	hosts := strings.Split(hostGroup.Hosts, "\n")
-	var validHosts []string
-	for _, host := range hosts {
-		host = strings.TrimSpace(host)
-		if host != "" {
-			validHosts = append(validHosts, host)
+	// 获取主机组中的所有主机
+	rows, err := database.DB.Query("SELECT ip, port, username, password FROM hosts WHERE host_group_id = ?", playbook.HostGroupID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch hosts"})
+		return
+	}
+	defer rows.Close()
+
+	var hosts []models.Host
+	for rows.Next() {
+		var host models.Host
+		err := rows.Scan(&host.IP, &host.Port, &host.Username, &host.Password)
+		if err != nil {
+			continue
 		}
+		hosts = append(hosts, host)
 	}
 
-	if len(validHosts) == 0 {
+	if len(hosts) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No valid hosts found"})
 		return
 	}
@@ -169,15 +174,15 @@ func ExecuteAnsiblePlaybook(c *gin.Context) {
 
 	// 异步执行playbook
 	go func() {
-		for _, host := range validHosts {
+		for _, host := range hosts {
 			log := models.AnsibleExecutionLog{
 				PlaybookID: playbookID,
-				Host:       host,
+				Host:       host.IP,
 				ExecutedAt: time.Now(),
 			}
 
 			// 执行Ansible playbook
-			output, err := services.ExecuteAnsiblePlaybook(host, hostGroup.Username, hostGroup.Password, hostGroup.Port, playbook.Content, playbook.Variables)
+			output, err := services.ExecuteAnsiblePlaybook(host.IP, host.Username, host.Password, host.Port, playbook.Content, playbook.Variables)
 			if err != nil {
 				log.Status = "failed"
 				log.Error = err.Error()
@@ -218,15 +223,13 @@ func ContinueAnsibleExecution(c *gin.Context) {
 		return
 	}
 
-	// 获取playbook和主机组信息
+	// 获取playbook信息
 	var playbook models.AnsiblePlaybook
-	var hostGroup models.HostGroup
 	err = database.DB.QueryRow(`
-		SELECT ap.id, ap.name, ap.content, ap.variables, ap.host_group_id, hg.username, hg.password, hg.port
-		FROM ansible_playbooks ap
-		JOIN host_groups hg ON ap.host_group_id = hg.id
-		WHERE ap.id = ?
-	`, playbookID).Scan(&playbook.ID, &playbook.Name, &playbook.Content, &playbook.Variables, &playbook.HostGroupID, &hostGroup.Username, &hostGroup.Password, &hostGroup.Port)
+		SELECT id, name, content, variables, host_group_id
+		FROM ansible_playbooks
+		WHERE id = ?
+	`, playbookID).Scan(&playbook.ID, &playbook.Name, &playbook.Content, &playbook.Variables, &playbook.HostGroupID)
 
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Playbook not found"})
@@ -235,14 +238,23 @@ func ContinueAnsibleExecution(c *gin.Context) {
 
 	// 异步执行剩余主机
 	go func() {
-		for _, host := range requestBody.RemainingHosts {
+		for _, hostIP := range requestBody.RemainingHosts {
+			// 获取主机的认证信息
+			var host models.Host
+			err := database.DB.QueryRow("SELECT ip, port, username, password FROM hosts WHERE ip = ? AND host_group_id = ?", hostIP, playbook.HostGroupID).Scan(
+				&host.IP, &host.Port, &host.Username, &host.Password)
+			if err != nil {
+				fmt.Printf("Failed to get host info for %s: %v\n", hostIP, err)
+				continue
+			}
+
 			log := models.AnsibleExecutionLog{
 				PlaybookID: playbookID,
-				Host:       host,
+				Host:       hostIP,
 				ExecutedAt: time.Now(),
 			}
 
-			output, err := services.ExecuteAnsiblePlaybook(host, hostGroup.Username, hostGroup.Password, hostGroup.Port, playbook.Content, playbook.Variables)
+			output, err := services.ExecuteAnsiblePlaybook(host.IP, host.Username, host.Password, host.Port, playbook.Content, playbook.Variables)
 			if err != nil {
 				log.Status = "failed"
 				log.Error = err.Error()
@@ -378,51 +390,57 @@ func ExecuteAnsiblePlaybookExperimental(c *gin.Context) {
 		return
 	}
 
-	// 获取playbook和主机组信息
+	// 获取playbook信息
 	var playbook models.AnsiblePlaybook
-	var hostGroup models.HostGroup
 	err = database.DB.QueryRow(`
-		SELECT ap.id, ap.name, ap.content, ap.variables, ap.host_group_id, hg.username, hg.password, hg.port, hg.hosts
-		FROM ansible_playbooks ap
-		JOIN host_groups hg ON ap.host_group_id = hg.id
-		WHERE ap.id = ?
-	`, playbookID).Scan(&playbook.ID, &playbook.Name, &playbook.Content, &playbook.Variables, &playbook.HostGroupID, &hostGroup.Username, &hostGroup.Password, &hostGroup.Port, &hostGroup.Hosts)
+		SELECT id, name, content, variables, host_group_id
+		FROM ansible_playbooks
+		WHERE id = ?
+	`, playbookID).Scan(&playbook.ID, &playbook.Name, &playbook.Content, &playbook.Variables, &playbook.HostGroupID)
 
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Playbook not found"})
 		return
 	}
 
-	// 解析主机列表
-	hosts := strings.Split(hostGroup.Hosts, "\n")
-	var validHosts []string
-	for _, host := range hosts {
-		host = strings.TrimSpace(host)
-		if host != "" {
-			validHosts = append(validHosts, host)
+	// 获取主机组中的所有主机
+	rows, err := database.DB.Query("SELECT ip, port, username, password FROM hosts WHERE host_group_id = ?", playbook.HostGroupID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch hosts"})
+		return
+	}
+	defer rows.Close()
+
+	var hosts []models.Host
+	for rows.Next() {
+		var host models.Host
+		err := rows.Scan(&host.IP, &host.Port, &host.Username, &host.Password)
+		if err != nil {
+			continue
 		}
+		hosts = append(hosts, host)
 	}
 
-	if len(validHosts) == 0 {
+	if len(hosts) == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No valid hosts found"})
 		return
 	}
 
-	if len(validHosts) == 1 {
+	if len(hosts) == 1 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Only one host available, experimental mode not applicable"})
 		return
 	}
 
 	// 随机选择一个实验主机
 	rand.Seed(time.Now().UnixNano())
-	experimentalHostIndex := rand.Intn(len(validHosts))
-	experimentalHost := validHosts[experimentalHostIndex]
+	experimentalHostIndex := rand.Intn(len(hosts))
+	experimentalHost := hosts[experimentalHostIndex]
 
 	// 创建剩余主机列表
-	remainingHosts := make([]string, 0, len(validHosts)-1)
-	for i, host := range validHosts {
+	remainingHosts := make([]string, 0, len(hosts)-1)
+	for i, host := range hosts {
 		if i != experimentalHostIndex {
-			remainingHosts = append(remainingHosts, host)
+			remainingHosts = append(remainingHosts, host.IP)
 		}
 	}
 
@@ -440,11 +458,11 @@ func ExecuteAnsiblePlaybookExperimental(c *gin.Context) {
 	// 在实验主机上执行playbook
 	log := models.AnsibleExecutionLog{
 		PlaybookID: playbookID,
-		Host:       experimentalHost,
+		Host:       experimentalHost.IP,
 		ExecutedAt: time.Now(),
 	}
 
-	output, err := services.ExecuteAnsiblePlaybook(experimentalHost, hostGroup.Username, hostGroup.Password, hostGroup.Port, playbook.Content, playbook.Variables)
+	output, err := services.ExecuteAnsiblePlaybook(experimentalHost.IP, experimentalHost.Username, experimentalHost.Password, experimentalHost.Port, playbook.Content, playbook.Variables)
 	if err != nil {
 		log.Status = "failed"
 		log.Error = err.Error()
@@ -465,7 +483,7 @@ func ExecuteAnsiblePlaybookExperimental(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"session_name":      sessionName,
-		"experimental_host": experimentalHost,
+		"experimental_host": experimentalHost.IP,
 		"status":            log.Status,
 		"output":            log.Output,
 		"error":             log.Error,

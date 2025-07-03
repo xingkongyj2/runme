@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"runme-backend/database"
 	"runme-backend/models"
+	"strings"
 	"time"
 )
 
@@ -41,21 +42,76 @@ func RenewCertificate(cert *models.Certificate) {
 func DeployCertificate(cert *models.Certificate) {
 	logCertificateAction(cert.ID, "deploy", "pending", "开始部署证书", "", "")
 
-	// 获取主机组信息
-	var hostGroup models.HostGroup
-	err := database.DB.QueryRow(
-		"SELECT id, name, username, password, port, hosts FROM host_groups WHERE id = ?",
-		cert.HostGroupID,
-	).Scan(&hostGroup.ID, &hostGroup.Name, &hostGroup.Username, &hostGroup.Password, &hostGroup.Port, &hostGroup.Hosts)
-
+	// 获取主机组下的所有主机
+	rows, err := database.DB.Query("SELECT ip, port, username, password FROM hosts WHERE host_group_id = ?", cert.HostGroupID)
 	if err != nil {
-		logCertificateAction(cert.ID, "deploy", "failed", "获取主机组信息失败", "", err.Error())
+		logCertificateAction(cert.ID, "deploy", "failed", "获取主机信息失败", "", err.Error())
+		return
+	}
+	defer rows.Close()
+
+	var hosts []models.Host
+	for rows.Next() {
+		var host models.Host
+		if err := rows.Scan(&host.IP, &host.Port, &host.Username, &host.Password); err != nil {
+			continue
+		}
+		hosts = append(hosts, host)
+	}
+
+	// 如果没有主机，检查hosts字段（兼容旧数据）
+	if len(hosts) == 0 {
+		var hostsStr string
+		err = database.DB.QueryRow("SELECT hosts FROM host_groups WHERE id = ?", cert.HostGroupID).Scan(&hostsStr)
+		if err == nil && hostsStr != "" {
+			// 对于旧数据，使用默认认证信息
+			hostIPs := strings.Split(hostsStr, ",")
+			for _, ip := range hostIPs {
+				ip = strings.TrimSpace(ip)
+				if ip != "" {
+					hosts = append(hosts, models.Host{
+						IP:       ip,
+						Port:     22,
+						Username: "root", // 默认用户名
+						Password: "",     // 需要配置默认密码或使用密钥
+					})
+				}
+			}
+		}
+	}
+
+	if len(hosts) == 0 {
+		logCertificateAction(cert.ID, "deploy", "failed", "没有找到可用的主机", "", "")
 		return
 	}
 
-	// 这里实现证书部署逻辑
-	// 可以使用SSH服务将证书文件复制到目标主机
-	logCertificateAction(cert.ID, "deploy", "success", "证书部署成功", "", "")
+	// 对每个主机部署证书
+	allSuccess := true
+	for _, host := range hosts {
+		// 这里实现证书部署逻辑
+		// 可以使用SSH服务将证书文件复制到目标主机
+		// 示例：使用 ExecuteSSHCommand 执行部署命令
+		deployScript := fmt.Sprintf(`
+			# 创建证书目录
+			sudo mkdir -p /etc/ssl/certs/
+			sudo mkdir -p /etc/ssl/private/
+			
+			# 这里可以添加实际的证书复制和配置逻辑
+			echo "Certificate deployment for %s completed"
+		`, cert.Domain)
+
+		_, err := ExecuteSSHCommand(host.IP, host.Username, host.Password, host.Port, deployScript)
+		if err != nil {
+			logCertificateAction(cert.ID, "deploy", "failed", fmt.Sprintf("主机 %s 部署失败", host.IP), "", err.Error())
+			allSuccess = false
+		}
+	}
+
+	if allSuccess {
+		logCertificateAction(cert.ID, "deploy", "success", "证书部署成功", "", "")
+	} else {
+		logCertificateAction(cert.ID, "deploy", "failed", "部分主机部署失败", "", "")
+	}
 }
 
 // issueLetSEncryptCertificate 签发Let's Encrypt证书

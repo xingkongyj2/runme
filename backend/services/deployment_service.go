@@ -18,37 +18,39 @@ func DeployProject(task *models.DeploymentTask) error {
 		return err
 	}
 
-	// 获取主机组信息
-	var hostGroup models.HostGroup
-	err = database.DB.QueryRow("SELECT id, name, username, password, port FROM host_groups WHERE id = ?",
-		task.HostGroupID).Scan(&hostGroup.ID, &hostGroup.Name, &hostGroup.Username, &hostGroup.Password, &hostGroup.Port)
-	if err != nil {
-		return err
-	}
-
-	// 获取主机组下的所有主机
-	rows, err := database.DB.Query("SELECT ip FROM hosts WHERE host_group_id = ?", task.HostGroupID)
+	// 获取主机组下的所有主机（包含认证信息）
+	rows, err := database.DB.Query("SELECT ip, port, username, password FROM hosts WHERE host_group_id = ?", task.HostGroupID)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 
-	var hosts []string
+	var hosts []models.Host
 	for rows.Next() {
-		var ip string
-		if err := rows.Scan(&ip); err != nil {
+		var host models.Host
+		if err := rows.Scan(&host.IP, &host.Port, &host.Username, &host.Password); err != nil {
 			continue
 		}
-		hosts = append(hosts, ip)
+		hosts = append(hosts, host)
 	}
 
 	// 如果没有主机，检查hosts字段（兼容旧数据）
 	if len(hosts) == 0 {
-		err = database.DB.QueryRow("SELECT hosts FROM host_groups WHERE id = ?", task.HostGroupID).Scan(&hostGroup.Hosts)
-		if err == nil && hostGroup.Hosts != "" {
-			hosts = strings.Split(hostGroup.Hosts, ",")
-			for i, host := range hosts {
-				hosts[i] = strings.TrimSpace(host)
+		var hostsStr string
+		err = database.DB.QueryRow("SELECT hosts FROM host_groups WHERE id = ?", task.HostGroupID).Scan(&hostsStr)
+		if err == nil && hostsStr != "" {
+			// 对于旧数据，使用默认认证信息
+			hostIPs := strings.Split(hostsStr, ",")
+			for _, ip := range hostIPs {
+				ip = strings.TrimSpace(ip)
+				if ip != "" {
+					hosts = append(hosts, models.Host{
+						IP:       ip,
+						Port:     22,
+						Username: "root", // 默认用户名
+						Password: "",     // 需要配置默认密码或使用密钥
+					})
+				}
 			}
 		}
 	}
@@ -56,19 +58,19 @@ func DeployProject(task *models.DeploymentTask) error {
 	allSuccess := true
 	// 对每个主机执行部署
 	for _, host := range hosts {
-		log.Printf("Deploying to host: %s", host)
+		log.Printf("Deploying to host: %s", host.IP)
 
 		// 记录部署开始
 		_, err := database.DB.Exec(`
 			INSERT INTO deployment_logs (task_id, host, status, output, deployed_at) 
 			VALUES (?, ?, 'running', 'Starting deployment...', ?)
-		`, task.ID, host, time.Now())
+		`, task.ID, host.IP, time.Now())
 		if err != nil {
 			log.Printf("Failed to insert deployment log: %v", err)
 		}
 
 		// 执行部署脚本
-		output, deployErr := executeDeploymentScript(host, &hostGroup, task)
+		output, deployErr := executeDeploymentScript(host, task)
 
 		status := "success"
 		errorMsg := ""
@@ -83,7 +85,7 @@ func DeployProject(task *models.DeploymentTask) error {
 			UPDATE deployment_logs 
 			SET status = ?, output = ?, error = ?, deployed_at = ?
 			WHERE task_id = ? AND host = ? AND status = 'running'
-		`, status, output, errorMsg, time.Now(), task.ID, host)
+		`, status, output, errorMsg, time.Now(), task.ID, host.IP)
 		if err != nil {
 			log.Printf("Failed to update deployment log: %v", err)
 		}
@@ -105,12 +107,12 @@ func DeployProject(task *models.DeploymentTask) error {
 }
 
 // executeDeploymentScript 执行部署脚本
-func executeDeploymentScript(host string, hostGroup *models.HostGroup, task *models.DeploymentTask) (string, error) {
+func executeDeploymentScript(host models.Host, task *models.DeploymentTask) (string, error) {
 	// 生成部署脚本
 	script := generateDeploymentScript(task)
 
 	// 使用SSH服务执行脚本
-	output, err := ExecuteSSHCommand(host, hostGroup.Username, hostGroup.Password, hostGroup.Port, script)
+	output, err := ExecuteSSHCommand(host.IP, host.Username, host.Password, host.Port, script)
 	if err != nil {
 		return output, fmt.Errorf("deployment failed: %v", err)
 	}

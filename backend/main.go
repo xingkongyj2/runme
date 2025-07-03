@@ -52,19 +52,17 @@ func main() {
 				hostGroupRoutes.DELETE("/:id", handlers.DeleteHostGroup)
 				hostGroupRoutes.GET("/:groupId/hosts", handlers.GetHostsByGroupID)
 			}
-
 			// 主机路由
-			hostRoutes := api.Group("/hosts")
+			hostRoutes := protected.Group("/hosts")
 			{
 				hostRoutes.GET("/:id", handlers.GetHostByID)
 				hostRoutes.POST("", handlers.CreateHost)
 				hostRoutes.PUT("/:id", handlers.UpdateHost)
 				hostRoutes.DELETE("/:id", handlers.DeleteHost)
+				hostRoutes.GET("/:id/osinfo", handlers.GetHostOSInfo) // 修正路由路径
 			}
-
 			// 终端路由 - 只支持主机ID
 			api.GET("/terminal/:hostId", handlers.HandleSSHTerminalByHostID)
-
 			// 脚本相关路由
 			api.GET("/scripts", handlers.GetScripts)
 			api.POST("/scripts", handlers.CreateScript)

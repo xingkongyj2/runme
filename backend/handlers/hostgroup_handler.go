@@ -12,7 +12,7 @@ import (
 
 // GetHostGroups 获取所有主机组
 func GetHostGroups(c *gin.Context) {
-	rows, err := database.DB.Query("SELECT id, name, username, password, port, hosts, created_at, updated_at FROM host_groups")
+	rows, err := database.DB.Query("SELECT id, name, created_at, updated_at FROM host_groups")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -22,7 +22,7 @@ func GetHostGroups(c *gin.Context) {
 	var hostGroups []models.HostGroup
 	for rows.Next() {
 		var hg models.HostGroup
-		err := rows.Scan(&hg.ID, &hg.Name, &hg.Username, &hg.Password, &hg.Port, &hg.Hosts, &hg.CreatedAt, &hg.UpdatedAt)
+		err := rows.Scan(&hg.ID, &hg.Name, &hg.CreatedAt, &hg.UpdatedAt)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -41,17 +41,12 @@ func CreateHostGroup(c *gin.Context) {
 		return
 	}
 
-	// 如果没有指定端口，默认使用22
-	if hg.Port == 0 {
-		hg.Port = 22
-	}
-
 	hg.CreatedAt = time.Now()
 	hg.UpdatedAt = time.Now()
 
 	result, err := database.DB.Exec(
-		"INSERT INTO host_groups (name, username, password, port, hosts, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		hg.Name, hg.Username, hg.Password, hg.Port, hg.Hosts, hg.CreatedAt, hg.UpdatedAt,
+		"INSERT INTO host_groups (name, created_at, updated_at) VALUES (?, ?, ?)",
+		hg.Name, hg.CreatedAt, hg.UpdatedAt,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -77,16 +72,11 @@ func UpdateHostGroup(c *gin.Context) {
 		return
 	}
 
-	// 如果没有指定端口，默认使用22
-	if hg.Port == 0 {
-		hg.Port = 22
-	}
-
 	hg.UpdatedAt = time.Now()
 
 	_, err = database.DB.Exec(
-		"UPDATE host_groups SET name=?, username=?, password=?, port=?, hosts=?, updated_at=? WHERE id=?",
-		hg.Name, hg.Username, hg.Password, hg.Port, hg.Hosts, hg.UpdatedAt, id,
+		"UPDATE host_groups SET name=?, updated_at=? WHERE id=?",
+		hg.Name, hg.UpdatedAt, id,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

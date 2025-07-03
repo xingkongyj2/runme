@@ -20,8 +20,8 @@ import (
 // GetHostGroupByID 根据ID获取主机组
 func GetHostGroupByID(id int) (*models.HostGroup, error) {
 	var hostGroup models.HostGroup
-	err := database.DB.QueryRow("SELECT id, name, username, password, port, hosts, created_at, updated_at FROM hostgroups WHERE id = ?", id).Scan(
-		&hostGroup.ID, &hostGroup.Name, &hostGroup.Username, &hostGroup.Password, &hostGroup.Port, &hostGroup.Hosts, &hostGroup.CreatedAt, &hostGroup.UpdatedAt)
+	err := database.DB.QueryRow("SELECT id, name, created_at, updated_at FROM host_groups WHERE id = ?", id).Scan(
+		&hostGroup.ID, &hostGroup.Name, &hostGroup.CreatedAt, &hostGroup.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -374,4 +374,63 @@ func formatBytesFromString(bytesStr string) string {
 		return "0 B/s"
 	}
 	return formatBytes(bytes)
+}
+
+// 在文件末尾添加获取操作系统信息的函数
+func GetRemoteOSInfo(conn *ssh.Client) (string, error) {
+	session, err := conn.NewSession()
+	if err != nil {
+		return "", err
+	}
+	defer session.Close()
+
+	// 尝试多种方法获取操作系统信息
+	commands := []string{
+		"cat /etc/os-release | grep PRETTY_NAME | cut -d'=' -f2 | tr -d '\"'",
+		"lsb_release -d 2>/dev/null | cut -f2",
+		"cat /etc/redhat-release 2>/dev/null",
+		"cat /etc/debian_version 2>/dev/null | sed 's/^/Debian /'",
+		"uname -s",
+	}
+
+	for _, cmd := range commands {
+		output, err := session.CombinedOutput(cmd)
+		if err == nil && len(strings.TrimSpace(string(output))) > 0 {
+			return strings.TrimSpace(string(output)), nil
+		}
+		// 重新创建session用于下一个命令
+		session, _ = conn.NewSession()
+	}
+
+	return "Unknown", nil
+}
+
+// 获取主机操作系统信息的独立函数
+func GetHostOSInfo(host, username, password string, port int) string {
+	sshPort := "22"
+	if port != 0 {
+		sshPort = strconv.Itoa(port)
+	}
+
+	config := &ssh.ClientConfig{
+		User: username,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(password),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         10 * time.Second,
+	}
+
+	conn, err := ssh.Dial("tcp", net.JoinHostPort(host, sshPort), config)
+	if err != nil {
+		return "Unknown"
+	}
+	defer conn.Close()
+
+	osInfo, err := GetRemoteOSInfo(conn)
+	if err != nil {
+		return "Unknown"
+	}
+
+	return osInfo
 }

@@ -2,10 +2,10 @@ package handlers
 
 import (
 	"net/http"
+	"runme-backend/database"
 	"runme-backend/models"
 	"runme-backend/services"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,35 +26,37 @@ func GetSystemInfo(c *gin.Context) {
 		return
 	}
 
-	// 获取主机组信息
-	hostGroup, err := services.GetHostGroupByID(groupID)
+	// 获取主机组下的所有主机
+	rows, err := database.DB.Query("SELECT ip, port, username, password FROM hosts WHERE host_group_id = ?", groupID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Host group not found"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch hosts"})
 		return
 	}
+	defer rows.Close()
 
-	// 获取主机列表
-	hosts := strings.Split(hostGroup.Hosts, "\n")
-	var systemInfos []models.SystemInfo
-
-	// 并发获取每个主机的系统信息
-	resultChan := make(chan models.SystemInfo, len(hosts))
-	validHosts := 0
-
-	for _, host := range hosts {
-		host = strings.TrimSpace(host)
-		if host == "" {
+	var hosts []models.Host
+	for rows.Next() {
+		var host models.Host
+		err := rows.Scan(&host.IP, &host.Port, &host.Username, &host.Password)
+		if err != nil {
 			continue
 		}
-		validHosts++
-		go func(h string) {
-			info := services.GetHostSystemInfo(h, hostGroup.Username, hostGroup.Password, hostGroup.Port)
+		hosts = append(hosts, host)
+	}
+
+	var systemInfos []models.SystemInfo
+	// 并发获取每个主机的系统信息
+	resultChan := make(chan models.SystemInfo, len(hosts))
+
+	for _, host := range hosts {
+		go func(h models.Host) {
+			info := services.GetHostSystemInfo(h.IP, h.Username, h.Password, h.Port)
 			resultChan <- info
 		}(host)
 	}
 
 	// 收集结果
-	for i := 0; i < validHosts; i++ {
+	for i := 0; i < len(hosts); i++ {
 		systemInfos = append(systemInfos, <-resultChan)
 	}
 
@@ -77,35 +79,37 @@ func GetProcessInfo(c *gin.Context) {
 		return
 	}
 
-	// 获取主机组信息
-	hostGroup, err := services.GetHostGroupByID(groupID)
+	// 获取主机组下的所有主机
+	rows, err := database.DB.Query("SELECT ip, port, username, password FROM hosts WHERE host_group_id = ?", groupID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Host group not found"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch hosts"})
 		return
 	}
+	defer rows.Close()
 
-	// 获取主机列表
-	hosts := strings.Split(hostGroup.Hosts, "\n")
-	var processInfos []models.ProcessInfo
-
-	// 并发获取每个主机的进程信息
-	resultChan := make(chan []models.ProcessInfo, len(hosts))
-	validHosts := 0
-
-	for _, host := range hosts {
-		host = strings.TrimSpace(host)
-		if host == "" {
+	var hosts []models.Host
+	for rows.Next() {
+		var host models.Host
+		err := rows.Scan(&host.IP, &host.Port, &host.Username, &host.Password)
+		if err != nil {
 			continue
 		}
-		validHosts++
-		go func(h string) {
-			processes := services.GetHostProcessInfo(h, hostGroup.Username, hostGroup.Password, hostGroup.Port)
+		hosts = append(hosts, host)
+	}
+
+	var processInfos []models.ProcessInfo
+	// 并发获取每个主机的进程信息
+	resultChan := make(chan []models.ProcessInfo, len(hosts))
+
+	for _, host := range hosts {
+		go func(h models.Host) {
+			processes := services.GetHostProcessInfo(h.IP, h.Username, h.Password, h.Port)
 			resultChan <- processes
 		}(host)
 	}
 
 	// 收集结果
-	for i := 0; i < validHosts; i++ {
+	for i := 0; i < len(hosts); i++ {
 		processInfos = append(processInfos, <-resultChan...)
 	}
 
