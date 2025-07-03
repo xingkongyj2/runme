@@ -169,7 +169,10 @@ const CertificateManagement = () => {
     <div className="space-y-6">
       {/* 页面标题和主要操作 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-foreground">证书管理</h1>
+        <div className="flex items-center gap-3">
+          <Shield size={24} className="text-primary" />
+          <h1 className="text-2xl font-bold text-foreground">证书管理</h1>
+        </div>
         <button 
           className="btn-primary flex items-center gap-2"
           onClick={() => {

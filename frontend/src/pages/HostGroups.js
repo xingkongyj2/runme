@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Server, Search, Eye } from 'lucide-react';
+import { Plus, Search, Server, Eye, Edit, Trash2 } from 'lucide-react';
 import { hostGroupAPI } from '../services/api';
 import Modal from '../components/Modal';
 import HostGroupDetail from '../components/HostGroupDetail';
@@ -9,7 +9,7 @@ const HostGroups = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
-  const [selectedGroups, setSelectedGroups] = useState([]);
+  // 移除 selectedGroups 状态
   const [searchTerm, setSearchTerm] = useState('');
   const [showDetail, setShowDetail] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
@@ -89,22 +89,6 @@ const HostGroups = () => {
     fetchHostGroups(); // 刷新主机组列表
   };
 
-  const toggleGroupSelection = (groupId) => {
-    setSelectedGroups(prev => 
-      prev.includes(groupId) 
-        ? prev.filter(id => id !== groupId)
-        : [...prev, groupId]
-    );
-  };
-
-  const selectAllGroups = () => {
-    if (selectedGroups.length === hostGroups.length) {
-      setSelectedGroups([]);
-    } else {
-      setSelectedGroups(hostGroups.map(group => group.id));
-    }
-  };
-
   const getHostCount = (hosts) => {
     if (!hosts) return 0;
     return hosts.split('\n').filter(h => h.trim()).length;
@@ -127,7 +111,10 @@ const HostGroups = () => {
     <div className="space-y-6">
       {/* 页面标题和主要操作 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-2xl font-bold text-foreground">主机管理</h1>
+        <div className="flex items-center gap-3">
+          <Server size={24} className="text-primary" />
+          <h1 className="text-2xl font-bold text-foreground">主机管理</h1>
+        </div>
         <button 
           className="btn-primary flex items-center gap-2"
           onClick={() => setShowModal(true)}
@@ -138,33 +125,19 @@ const HostGroups = () => {
       </div>
 
       {/* 搜索区域 */}
-      <div className="p-6 bg-card rounded-xl border border-border">
-        <div className="relative max-w-md">
-          <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary" />
-          <input
-            type="text"
-            placeholder="搜索主机组名称、IP"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-          />
-        </div>
+      <div className="relative max-w-xs">
+        <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary" />
+        <input
+          type="text"
+          placeholder="搜索主机组名称、IP"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border-2 border-primary rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+        />
       </div>
 
       {/* 主机组列表卡片 */}
       <div className="bg-card rounded-xl border border-border overflow-hidden">
-        <div className="p-6 border-b border-border">
-          <div className="flex items-center gap-3">
-            <input 
-              type="checkbox" 
-              className="custom-checkbox"
-              checked={selectedGroups.length === hostGroups.length && hostGroups.length > 0}
-              onChange={selectAllGroups}
-            />
-            <span className="text-lg font-semibold text-foreground">主机组列表</span>
-          </div>
-        </div>
-
         {filteredGroups.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Server size={48} className="text-foreground-secondary mb-4" />
@@ -176,14 +149,8 @@ const HostGroups = () => {
               <thead className="bg-background-secondary">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">
-                    <input 
-                      type="checkbox" 
-                      className="custom-checkbox"
-                      checked={selectedGroups.length === filteredGroups.length}
-                      onChange={selectAllGroups}
-                    />
+                    <span className="font-bold">主机组名称</span>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">主机组名称</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">主机数量</th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-foreground-secondary uppercase tracking-wider">查看详情</th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-foreground-secondary uppercase tracking-wider">编辑</th>
@@ -193,14 +160,6 @@ const HostGroups = () => {
               <tbody className="divide-y divide-border">
                 {filteredGroups.map((group) => (
                   <tr key={group.id} className="hover:bg-background-secondary transition-colors">
-                    <td className="px-6 py-4">
-                      <input 
-                        type="checkbox" 
-                        className="custom-checkbox"
-                        checked={selectedGroups.includes(group.id)}
-                        onChange={() => toggleGroupSelection(group.id)}
-                      />
-                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <Server size={16} className="text-primary" />

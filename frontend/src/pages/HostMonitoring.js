@@ -180,9 +180,11 @@ const HostMonitoring = () => {
   return (
     <div className="space-y-6">
       {/* 页面标题 */}
-      <div className="flex items-center gap-3">
-        <Monitor className="w-8 h-8 text-gray-400" />
-        <h1 className="text-3xl font-bold text-white">主机监控</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Monitor size={24} className="text-primary" />
+          <h1 className="text-2xl font-bold text-foreground">主机监控</h1>
+        </div>
       </div>
 
       {/* 主要Tab页 */}

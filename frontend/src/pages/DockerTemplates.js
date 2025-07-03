@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Copy, Download, Search, Filter } from 'lucide-react';
+import { Play, Copy, Download, Search, Filter, Container } from 'lucide-react';
 import Modal from '../components/Modal';
 
 const DockerTemplates = () => {
@@ -192,41 +192,44 @@ services:
 
   return (
     <div className="space-y-6">
-      {/* 页面标题和搜索 */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-bold text-foreground">Docker模板</h1>
-        
-        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          {/* 搜索框 */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary w-4 h-4" />
-            <input
-              type="text"
-              placeholder="搜索模板..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 bg-background border border-border rounded-lg text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent w-full sm:w-64"
-            />
-          </div>
-          
-          {/* 分类筛选 */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary w-4 h-4" />
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="pl-10 pr-8 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent appearance-none cursor-pointer"
-            >
-              {categories.map(category => (
-                <option key={category.value} value={category.value}>
-                  {category.label}
-                </option>
-              ))}
-            </select>
-          </div>
+      {/* 页面标题 */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Container size={24} className="text-primary" />
+          <h1 className="text-2xl font-bold text-foreground">Docker模板</h1>
         </div>
       </div>
 
+      {/* 搜索和筛选区域 */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        {/* 搜索区域 */}
+        <div className="relative max-w-xs">
+          <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary" />
+          <input
+            type="text"
+            placeholder="搜索模板名称、描述"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border-2 border-primary rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+          />
+        </div>
+
+        {/* 分类筛选区域 */}
+        <div className="relative max-w-xs">
+          <Filter size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary" />
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="w-full pl-10 pr-8 py-2 border-2 border-primary rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary appearance-none cursor-pointer"
+          >
+            {categories.map(category => (
+              <option key={category.value} value={category.value}>
+                {category.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
       {/* 模板网格 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredTemplates.map((template) => (

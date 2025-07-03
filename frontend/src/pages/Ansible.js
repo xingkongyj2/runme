@@ -167,7 +167,10 @@ const Ansible = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-foreground">Ansible管理</h1>
+          <div className="flex items-center gap-3">
+            <Settings size={24} className="text-primary" />
+            <h1 className="text-2xl font-bold text-foreground">Ansible管理</h1>
+          </div>
           <div className="flex items-center gap-2">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -177,7 +180,6 @@ const Ansible = () => {
                 className="custom-checkbox"
               />
               <span className="text-sm text-foreground flex items-center gap-1">
-                <AlertTriangle size={14} className={experimentalMode ? 'text-orange-500' : 'text-gray-400'} />
                 实验主机模式
               </span>
             </label>

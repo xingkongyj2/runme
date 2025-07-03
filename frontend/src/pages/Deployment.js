@@ -136,14 +136,14 @@ const Deployment = () => {
   return (
     <div className="space-y-6">
       {/* 页面标题 */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-white">项目部署</h1>
-          <p className="text-gray-400 mt-2">管理和执行项目自动部署任务</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <GitBranch size={24} className="text-primary" />
+          <h1 className="text-2xl font-bold text-foreground">项目部署</h1>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="text-gray-400 hover:text-white px-4 py-2 flex items-center gap-2 transition-colors"
+          className="btn-primary flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
           新建部署任务
@@ -151,24 +151,14 @@ const Deployment = () => {
       </div>
 
       {/* 任务列表 */}
-      <div className="bg-card rounded-xl border border-border">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-white">部署任务</h2>
-            <button
-              onClick={fetchTasks}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              <RefreshCw className="w-5 h-5" />
-            </button>
-          </div>
-
-          {tasks.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-gray-500 text-lg">暂无部署任务</div>
-              <div className="text-gray-600 text-sm mt-2">点击上方按钮创建第一个部署任务</div>
-            </div>
-          ) : (
+      {tasks.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <GitBranch size={48} className="text-foreground-secondary mb-4" />
+          <p className="text-foreground-secondary">暂无部署任务，点击上方按钮创建第一个部署任务</p>
+        </div>
+      ) : (
+        <div className="bg-card rounded-xl border border-border">
+          <div className="p-6">
             <div className="space-y-4">
               {tasks.map((task) => (
                 <div key={task.id} className="bg-background-secondary rounded-lg p-4 border border-border">
@@ -231,9 +221,9 @@ const Deployment = () => {
                 </div>
               ))}
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 创建任务模态框 */}
       {showCreateModal && (
