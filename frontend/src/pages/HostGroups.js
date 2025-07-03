@@ -9,10 +9,12 @@ const HostGroups = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
-  // 移除 selectedGroups 状态
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(''); 
   const [showDetail, setShowDetail] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
+  // 新增删除确认弹窗状态
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingGroup, setDeletingGroup] = useState(null);
   const [formData, setFormData] = useState({
     name: ''
   });
@@ -66,16 +68,25 @@ const HostGroups = () => {
     setShowModal(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('确定要删除这个主机组吗？')) {
+  // 修改删除函数，移除window.confirm
+  const handleDeleteGroup = async () => {
+    if (deletingGroup) {
       try {
-        await hostGroupAPI.delete(id);
+        await hostGroupAPI.delete(deletingGroup.id);
         fetchHostGroups();
+        setShowDeleteModal(false);
+        setDeletingGroup(null);
       } catch (error) {
         console.error('Failed to delete host group:', error);
         alert('删除失败');
       }
     }
+  };
+  
+  // 修改原来的handleDelete函数
+  const handleDelete = (group) => {
+    setDeletingGroup(group);
+    setShowDeleteModal(true);
   };
 
   const openDetail = (group) => {
@@ -190,7 +201,7 @@ const HostGroups = () => {
                     <td className="px-6 py-4 text-center">
                       <button 
                         className="inline-flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
-                        onClick={() => handleDelete(group.id)}
+                        onClick={() => handleDelete(group)}
                         title="删除"
                       >
                         <Trash2 size={14} />
@@ -246,6 +257,45 @@ const HostGroups = () => {
           onClose={closeDetail}
         />
       )}
+
+      {/* 删除确认弹窗 */}
+      <Modal 
+        isOpen={showDeleteModal} 
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeletingGroup(null);
+        }}
+        title="确认删除"
+      >
+        <div className="space-y-4">
+          <p className="text-foreground">
+            确定要删除主机组 <span className="font-mono font-semibold text-red-600">{deletingGroup?.name}</span> 吗？
+          </p>
+          <p className="text-sm text-foreground-secondary">
+            此操作将同时删除该主机组下的所有主机信息，且不可撤销，请谨慎操作。
+          </p>
+          
+          <div className="flex justify-end gap-3 pt-4">
+            <button 
+              type="button" 
+              className="btn-secondary"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setDeletingGroup(null);
+              }}
+            >
+              取消
+            </button>
+            <button 
+              type="button" 
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+              onClick={handleDeleteGroup}
+            >
+              确认删除
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
