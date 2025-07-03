@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Terminal, X, Wifi, Upload, Monitor, Users } from 'lucide-react';
-import { hostGroupAPI } from '../services/api';
+import { hostGroupAPI, hostAPI } from '../services/api';
 import Modal from './Modal';
 
 // 将getLinuxIcon函数移到组件外部作为工具函数
@@ -122,19 +122,52 @@ const HostGroupDetail = ({ group, onClose }) => {
     setPinging(false);
   };
 
-  const handleAddHost = () => {
+  useEffect(() => {
+    // 从后端获取主机列表，而不是解析hosts字符串
+    const fetchHosts = async () => {
+      try {
+        const response = await hostAPI.getByGroupId(group.id);
+        setHosts(response.data?.data || []);
+      } catch (error) {
+        console.error('Failed to fetch hosts:', error);
+        setHosts([]);
+      }
+    };
+    
+    fetchHosts();
+  }, [group.id]);
+
+  const handleAddHost = async () => {
     if (newHost.ip.trim() && newHost.username.trim() && newHost.password.trim()) {
-      const updatedHosts = [...hosts, { 
-        id: Date.now(), 
-        ip: newHost.ip.trim(),
-        port: newHost.port || '22',
-        username: newHost.username.trim(),
-        password: newHost.password.trim()
-      }];
-      setHosts(updatedHosts);
-      updateGroupHosts(updatedHosts);
-      setNewHost({ ip: '', port: '22', username: 'root', password: '' });
-      setShowAddModal(false);
+      try {
+        // 添加主机到后端
+        const response = await hostAPI.create({
+          ip: newHost.ip.trim(),
+          port: parseInt(newHost.port) || 22,
+          username: newHost.username.trim(),
+          password: newHost.password.trim(),
+          host_group_id: group.id
+        });
+        
+        const newHostData = response.data.data;
+        
+        // 获取操作系统信息
+        try {
+          const osResponse = await hostAPI.getOSInfo(newHostData.id);
+          newHostData.os_info = osResponse.data.os_info;
+        } catch (error) {
+          console.error('获取操作系统信息失败:', error);
+          newHostData.os_info = '未知';
+        }
+        
+        const updatedHosts = [...hosts, newHostData];
+        setHosts(updatedHosts);
+        setNewHost({ ip: '', port: '22', username: 'root', password: '' });
+        setShowAddModal(false);
+      } catch (error) {
+        console.error('添加主机失败:', error);
+        alert('添加主机失败');
+      }
     }
   };
 
@@ -180,36 +213,48 @@ const HostGroupDetail = ({ group, onClose }) => {
     setShowAddModal(true);
   };
 
-  const handleUpdateHost = () => {
+  const handleUpdateHost = async () => {
     if (newHost.ip.trim() && newHost.username.trim() && newHost.password.trim() && editingHost) {
-      const updatedHosts = hosts.map(host => 
-        host.id === editingHost.id ? { 
-          ...host, 
+      try {
+        const response = await hostAPI.update(editingHost.id, {
           ip: newHost.ip.trim(),
-          port: newHost.port || '22',
+          port: parseInt(newHost.port) || 22,
           username: newHost.username.trim(),
-          password: newHost.password.trim()
-        } : host
-      );
-      setHosts(updatedHosts);
-      updateGroupHosts(updatedHosts);
-      setNewHost({ ip: '', port: '22', username: 'root', password: '' });
-      setEditingHost(null);
-      setShowAddModal(false);
+          password: newHost.password.trim(),
+          host_group_id: group.id
+        });
+        
+        const updatedHostData = response.data.data;
+        const updatedHosts = hosts.map(host => 
+          host.id === editingHost.id ? updatedHostData : host
+        );
+        setHosts(updatedHosts);
+        setNewHost({ ip: '', port: '22', username: 'root', password: '' });
+        setEditingHost(null);
+        setShowAddModal(false);
+      } catch (error) {
+        console.error('更新主机失败:', error);
+        alert('更新主机失败');
+      }
     }
   };
 
-  // 修改删除主机函数
-  const handleDeleteHost = () => {
+  const handleDeleteHost = async () => {
     if (deletingHost) {
-      const updatedHosts = hosts.filter(host => host.id !== deletingHost.id);
-      setHosts(updatedHosts);
-      updateGroupHosts(updatedHosts);
-      setShowDeleteModal(false);
-      setDeletingHost(null);
+      try {
+        await hostAPI.delete(deletingHost.id);
+        const updatedHosts = hosts.filter(host => host.id !== deletingHost.id);
+        setHosts(updatedHosts);
+        setShowDeleteModal(false);
+        setDeletingHost(null);
+      } catch (error) {
+        console.error('删除主机失败:', error);
+        alert('删除主机失败');
+      }
     }
   };
 
+  // 移除 updateGroupHosts 函数，因为不再需要更新主机组的hosts字段
   const updateGroupHosts = async (hostList) => {
     try {
       // 将主机信息序列化为字符串格式
@@ -236,7 +281,7 @@ const HostGroupDetail = ({ group, onClose }) => {
         <div className="fixed inset-0 bg-black bg-opacity-90" onClick={onClose}></div>
         
         {/* 弹窗容器 - 使用与编辑弹窗相同的宽度和固定90%高度 */}
-        <div className="relative w-full max-w-2xl h-[90vh] bg-card shadow-2xl rounded-xl border border-border flex flex-col">
+        <div className="relative w-full max-w-3xl h-[90vh] bg-card shadow-2xl rounded-xl border border-border flex flex-col">
           {/* 弹窗头部 - 固定不滚动 */}
           <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
             <div>
@@ -272,103 +317,109 @@ const HostGroupDetail = ({ group, onClose }) => {
 
           {/* 操作栏 - 固定不滚动 */}
           <div className="p-6 border-b border-border flex-shrink-0">
-            <div className="flex flex-wrap gap-3">
-              <button 
-                className="px-3 py-1.5 bg-black hover:bg-gray-900 text-white rounded-lg transition-colors flex items-center gap-2 text-sm"
-                onClick={() => setShowAddModal(true)}
-              >
-                <Plus size={14} />
-                添加主机
-              </button>
-              <button 
-                className="px-3 py-1.5 bg-black hover:bg-gray-900 text-white rounded-lg transition-colors flex items-center gap-2 text-sm"
-                onClick={() => setShowBatchModal(true)}
-              >
-                <Users size={14} />
-                批量添加
-              </button>
+            <div className="flex justify-center">
+              <div className="w-full max-w-5xl">
+                <div className="flex flex-wrap gap-3">
+                  <button 
+                    className="px-3 py-1.5 bg-black hover:bg-gray-900 text-white rounded-lg transition-colors flex items-center gap-2 text-sm"
+                    onClick={() => setShowAddModal(true)}
+                  >
+                    <Plus size={14} />
+                    添加主机
+                  </button>
+                  <button 
+                    className="px-3 py-1.5 bg-black hover:bg-gray-900 text-white rounded-lg transition-colors flex items-center gap-2 text-sm"
+                    onClick={() => setShowBatchModal(true)}
+                  >
+                    <Users size={14} />
+                    批量添加
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* 主机列表 - 可滚动区域 */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto flex justify-center">
             {hosts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <Terminal size={48} className="text-foreground-secondary mb-4" />
                 <p className="text-foreground-secondary">暂无主机，点击上方按钮添加主机</p>
               </div>
             ) : (
-              <table className="w-full">
-                <thead className="bg-background-secondary sticky top-0">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">序号</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">主机IP</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">系统</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">延迟</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-foreground-secondary uppercase tracking-wider">操作</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {hosts.map((host, index) => (
-                    <tr key={host.id} className="hover:bg-background-secondary transition-colors">
-                      <td className="px-6 py-4 text-foreground">{index + 1}</td>
-                      <td className="px-6 py-4 text-foreground font-mono">{host.ip}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          {getLinuxIcon(host.osInfo)}
-                          <span className="text-sm text-foreground-secondary">
-                            {host.osInfo || '未知'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        {pinging ? (
-                          <span className="text-yellow-500">测试中...</span>
-                        ) : pingResults[host.ip] ? (
-                          pingResults[host.ip].success ? (
-                            <span className="text-green-500">{pingResults[host.ip].latency}ms</span>
-                          ) : (
-                            <span className="text-red-500">超时</span>
-                          )
-                        ) : (
-                          <span className="text-gray-500">-</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <button 
-                            className="p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-colors dark:text-purple-400 dark:hover:text-purple-300 dark:hover:bg-purple-900/20"
-                            onClick={() => {
-                              const terminalUrl = `/terminal/${host.id}`;
-                              window.open(terminalUrl, '_blank');
-                            }}
-                            title="SSH终端"
-                          >
-                            <Terminal size={14} />
-                          </button>
-                          <button 
-                            className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20"
-                            onClick={() => handleEditHost(host)}
-                            title="编辑"
-                          >
-                            <Edit size={14} />
-                          </button>
-                          <button 
-                            className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
-                            onClick={() => {
-                              setDeletingHost(host);
-                              setShowDeleteModal(true);
-                            }}
-                            title="删除"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
+              <div className="w-full max-w-5xl">
+                <table className="w-full">
+                  <thead className="bg-background-secondary sticky top-0">
+                    <tr>
+                      <th className="px-3 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider w-16">序号</th>
+                      <th className="px-3 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider w-32">主机IP</th>
+                      <th className="px-4 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">系统</th>
+                      <th className="px-4 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider w-20">延迟</th>
+                      <th className="px-4 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">操作</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {hosts.map((host, index) => (
+                      <tr key={host.id} className="hover:bg-background-secondary transition-colors">
+                        <td className="px-3 py-4 text-foreground text-sm text-center">{index + 1}</td>
+                        <td className="px-3 py-4 text-foreground font-mono text-sm text-center">{host.ip}</td>
+                        <td className="px-4 py-4 text-center">
+                          <div className="flex items-center gap-2 justify-center">
+                            {getLinuxIcon(host.osInfo)}
+                            <span className="text-sm text-foreground-secondary">
+                              {host.osInfo || '未知'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          {pinging ? (
+                            <span className="text-yellow-500">测试中...</span>
+                          ) : pingResults[host.ip] ? (
+                            pingResults[host.ip].success ? (
+                              <span className="text-green-500">{pingResults[host.ip].latency}ms</span>
+                            ) : (
+                              <span className="text-red-500">超时</span>
+                            )
+                          ) : (
+                            <span className="text-gray-500">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <div className="flex items-center gap-2 justify-center">
+                            <button 
+                              className="p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-colors dark:text-purple-400 dark:hover:text-purple-300 dark:hover:bg-purple-900/20"
+                              onClick={() => {
+                                const terminalUrl = `/terminal/${host.id}`;
+                                window.open(terminalUrl, '_blank');
+                              }}
+                              title="SSH终端"
+                            >
+                              <Terminal size={14} />
+                            </button>
+                            <button 
+                              className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20"
+                              onClick={() => handleEditHost(host)}
+                              title="编辑"
+                            >
+                              <Edit size={14} />
+                            </button>
+                            <button 
+                              className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
+                              onClick={() => {
+                                setDeletingHost(host);
+                                setShowDeleteModal(true);
+                              }}
+                              title="删除"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>

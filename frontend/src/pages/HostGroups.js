@@ -15,6 +15,8 @@ const HostGroups = () => {
   // 新增删除确认弹窗状态
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingGroup, setDeletingGroup] = useState(null);
+  // 新增：用于存储主机数量的状态
+  const [hostCounts, setHostCounts] = useState({});
   const [formData, setFormData] = useState({
     name: ''
   });
@@ -26,7 +28,20 @@ const HostGroups = () => {
   const fetchHostGroups = async () => {
     try {
       const response = await hostGroupAPI.getAll();
-      setHostGroups(response.data || []);
+      const groups = response.data || [];
+      setHostGroups(groups);
+      
+      // 获取每个主机组的主机数量
+      const counts = {};
+      for (const group of groups) {
+        try {
+          const hostResponse = await hostGroupAPI.getHosts(group.id);
+          counts[group.id] = hostResponse.data?.data?.length || 0;
+        } catch (error) {
+          counts[group.id] = 0;
+        }
+      }
+      setHostCounts(counts);
     } catch (error) {
       console.error('Failed to fetch host groups:', error);
     } finally {
@@ -38,11 +53,8 @@ const HostGroups = () => {
     e.preventDefault();
     try {
       const submitData = {
-        name: formData.name,
-        username: '',
-        password: '',
-        port: 22,
-        hosts: ''
+        name: formData.name
+        // 移除 username, password, port, hosts 字段
       };
       
       if (editingGroup) {
@@ -59,6 +71,9 @@ const HostGroups = () => {
       alert('保存失败，请检查输入信息');
     }
   };
+
+  // 获取主机数量的函数需要修改
+  // 移除原来的 getHostCount 函数，因为我们现在使用状态管理
 
   const handleEdit = (group) => {
     setEditingGroup(group);
@@ -98,11 +113,6 @@ const HostGroups = () => {
     setShowDetail(false);
     setSelectedGroup(null);
     fetchHostGroups(); // 刷新主机组列表
-  };
-
-  const getHostCount = (hosts) => {
-    if (!hosts) return 0;
-    return hosts.split('\n').filter(h => h.trim()).length;
   };
 
   const filteredGroups = hostGroups.filter(group => 
@@ -177,7 +187,7 @@ const HostGroups = () => {
                         <span className="text-foreground font-medium">{group.name}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-foreground">{getHostCount(group.hosts)} 台</td>
+                    <td className="px-6 py-4 text-foreground">{hostCounts[group.id] || 0} 台</td>
                     <td className="px-6 py-4 text-center">
                       <button 
                         className="inline-flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20"

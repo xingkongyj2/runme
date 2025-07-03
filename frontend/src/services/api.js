@@ -42,12 +42,35 @@ export const authAPI = {
   register: (userData) => api.post('/auth/register', userData),
 };
 
-// 主机组API
+// 主机组API - 简化版本
 export const hostGroupAPI = {
   getAll: () => api.get('/hostgroups'),
-  create: (data) => api.post('/hostgroups', data),
+  create: (data) => api.post('/hostgroups', data), // 只需要传递 name
   update: (id, data) => api.put(`/hostgroups/${id}`, data),
   delete: (id) => api.delete(`/hostgroups/${id}`),
+  // 获取主机组下的主机列表
+  getHosts: (groupId) => api.get(`/hostgroups/${groupId}/hosts`),
+};
+
+// 主机API - 扩展版本
+export const hostAPI = {
+  // 获取指定主机组的所有主机
+  getByGroupId: (groupId) => api.get(`/hostgroups/${groupId}/hosts`),
+  
+  // 根据ID获取主机
+  getById: (id) => api.get(`/hosts/${id}`),
+  
+  // 创建主机 - 现在包含完整的主机信息
+  create: (hostData) => api.post('/hosts', hostData),
+  
+  // 更新主机
+  update: (id, hostData) => api.put(`/hosts/${id}`, hostData),
+  
+  // 删除主机
+  delete: (id) => api.delete(`/hosts/${id}`),
+  
+  // 获取操作系统信息
+  getOSInfo: (id) => api.get(`/hosts/${id}/osinfo`)
 };
 
 // 脚本API
@@ -75,23 +98,7 @@ export const ansibleAPI = {
   getLogs: (id, sessionName) => api.get(`/ansible/${id}/logs?session_name=${encodeURIComponent(sessionName)}`)
 };
 
-// 主机API
-export const hostAPI = {
-  // 获取指定主机组的所有主机
-  getByGroupId: (groupId) => api.get(`/hostgroups/${groupId}/hosts`),
-  
-  // 根据ID获取主机
-  getById: (id) => api.get(`/hosts/${id}`),
-  
-  // 创建主机
-  create: (hostData) => api.post('/hosts', hostData),
-  
-  // 更新主机
-  update: (id, hostData) => api.put(`/hosts/${id}`, hostData),
-  
-  // 删除主机
-  delete: (id) => api.delete(`/hosts/${id}`)
-};
+
 
 // 监控API
 export const monitoringAPI = {
