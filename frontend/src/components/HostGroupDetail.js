@@ -11,7 +11,8 @@ const getLinuxIcon = (osInfo) => {
   if (os.includes('ubuntu')) {
     return <div className="w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center text-white text-xs font-bold">U</div>;
   } else if (os.includes('centos')) {
-    return <div className="w-4 h-4 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">C</div>;
+    // 更贴切的CentOS图标：使用官方深蓝色，圆角矩形设计
+    return <div className="w-4 h-4 bg-blue-800 rounded-sm flex items-center justify-center text-white text-xs font-bold shadow-sm">C</div>;
   } else if (os.includes('redhat') || os.includes('rhel')) {
     return <div className="w-4 h-4 bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold">R</div>;
   } else if (os.includes('debian')) {
@@ -48,6 +49,8 @@ const HostGroupDetail = ({ group, onClose }) => {
   const [uploadPath, setUploadPath] = useState('/tmp/');
   const [pingResults, setPingResults] = useState({});
   const [pinging, setPinging] = useState(false);
+  // 新增状态：控制延迟数据显示
+  const [showingResults, setShowingResults] = useState(false);
 
   useEffect(() => {
     if (group.hosts) {
@@ -95,6 +98,7 @@ const HostGroupDetail = ({ group, onClose }) => {
   // 修复第82行的latency变量问题 - 移除未使用的变量
   const handlePingAll = async () => {
     setPinging(true);
+    setShowingResults(false);
     const results = {};
     
     for (const host of hosts) {
@@ -120,6 +124,13 @@ const HostGroupDetail = ({ group, onClose }) => {
     
     setPingResults(results);
     setPinging(false);
+    setShowingResults(true);
+    
+    // 2秒后清除延迟数据显示
+    setTimeout(() => {
+      setShowingResults(false);
+      setPingResults({});
+    }, 2000);
   };
 
   useEffect(() => {
@@ -152,6 +163,7 @@ const HostGroupDetail = ({ group, onClose }) => {
         const newHostData = response.data.data;
         
         // 获取操作系统信息
+        // 在handleAddHost函数中
         try {
           const osResponse = await hostAPI.getOSInfo(newHostData.id);
           newHostData.os_info = osResponse.data.os_info;
@@ -300,7 +312,7 @@ const HostGroupDetail = ({ group, onClose }) => {
               </button>
               <button
                 onClick={handlePingAll}
-                disabled={pinging}
+                disabled={pinging || showingResults}
                 className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20 disabled:opacity-50"
                 title="Ping所有主机"
               >
@@ -365,16 +377,14 @@ const HostGroupDetail = ({ group, onClose }) => {
                         <td className="px-3 py-4 text-foreground font-mono text-sm text-center">{host.ip}</td>
                         <td className="px-4 py-4 text-center">
                           <div className="flex items-center gap-2 justify-center">
-                            {getLinuxIcon(host.osInfo)}
+                            {getLinuxIcon(host.os_info)}
                             <span className="text-sm text-foreground-secondary">
-                              {host.osInfo || '未知'}
+                              {host.os_info || '未知'}
                             </span>
                           </div>
                         </td>
                         <td className="px-4 py-4 text-center">
-                          {pinging ? (
-                            <span className="text-yellow-500">测试中...</span>
-                          ) : pingResults[host.ip] ? (
+                          {showingResults && pingResults[host.ip] ? (
                             pingResults[host.ip].success ? (
                               <span className="text-green-500">{pingResults[host.ip].latency}ms</span>
                             ) : (
