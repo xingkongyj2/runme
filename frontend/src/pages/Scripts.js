@@ -5,6 +5,7 @@ import Modal from '../components/Modal';
 import LogModal from '../components/LogModal';
 import ExperimentalModal from '../components/ExperimentalModal';
 import AISuggestionModal from '../components/AISuggestionModal';
+import CustomSelect from '../components/CustomSelect';
 
 const Scripts = () => {
   const [scripts, setScripts] = useState([]);
@@ -22,6 +23,13 @@ const Scripts = () => {
     name: '',
     content: '',
     host_group_id: ''
+  });
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState({
+    title: '',
+    message: '',
+    onConfirm: null,
+    type: 'warning'
   });
 
   useEffect(() => {
@@ -87,40 +95,61 @@ const Scripts = () => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('确定要删除这个脚本吗？')) {
-      try {
-        await scriptAPI.delete(id);
-        fetchScripts();
-      } catch (error) {
-        console.error('Failed to delete script:', error);
-        alert('删除失败');
+    setConfirmConfig({
+      title: '删除确认',
+      message: '确定要删除这个脚本吗？删除后将无法恢复。',
+      onConfirm: async () => {
+        try {
+          await scriptAPI.delete(id);
+          fetchScripts();
+          setShowConfirmModal(false);
+        } catch (error) {
+          console.error('Failed to delete script:', error);
+          // 可以继续使用 alert 或者也改为 Modal
+          alert('删除失败');
+          setShowConfirmModal(false);
+        }
       }
-    }
+    });
+    setShowConfirmModal(true);
   };
 
   const handleExecute = async (script) => {
     if (experimentalMode) {
-      if (window.confirm(`确定要在实验主机模式下执行脚本 "${script.name}" 吗？\n\n系统将随机选择一台主机进行测试，确认无问题后再继续执行剩余主机。`)) {
-        try {
-          const response = await scriptAPI.executeExperimental(script.id);
-          setExperimentalResult(response.data);
-          setShowExperimentalModal(true);
-        } catch (error) {
-          console.error('Failed to execute script in experimental mode:', error);
-          alert('实验模式执行失败');
+      setConfirmConfig({
+        title: '实验模式执行确认',
+        message: `确定要在实验主机模式下执行脚本 "${script.name}" 吗？\n\n系统将随机选择一台主机进行测试，确认无问题后再继续执行剩余主机。`,
+        onConfirm: async () => {
+          try {
+            const response = await scriptAPI.executeExperimental(script.id);
+            setExperimentalResult(response.data);
+            setShowExperimentalModal(true);
+            setShowConfirmModal(false);
+          } catch (error) {
+            console.error('Failed to execute script in experimental mode:', error);
+            alert('实验模式执行失败');
+            setShowConfirmModal(false);
+          }
         }
-      }
+      });
     } else {
-      if (window.confirm(`确定要执行脚本 "${script.name}" 吗？`)) {
-        try {
-          await scriptAPI.execute(script.id);
-          alert('脚本执行已启动，请查看日志了解执行结果');
-        } catch (error) {
-          console.error('Failed to execute script:', error);
-          alert('执行失败');
+      setConfirmConfig({
+        title: '执行确认',
+        message: `确定要执行脚本 "${script.name}" 吗？`,
+        onConfirm: async () => {
+          try {
+            await scriptAPI.execute(script.id);
+            alert('脚本执行已启动，请查看日志了解执行结果');
+            setShowConfirmModal(false);
+          } catch (error) {
+            console.error('Failed to execute script:', error);
+            alert('执行失败');
+            setShowConfirmModal(false);
+          }
         }
-      }
+      });
     }
+    setShowConfirmModal(true);
   };
 
   const handleViewLogs = (script) => {
@@ -217,9 +246,6 @@ const Scripts = () => {
           <div key={script.id} className="bg-card rounded-xl border border-border p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <FileText className="w-5 h-5 text-primary" />
-                </div>
                 <h3 className="font-semibold text-foreground truncate">{script.name}</h3>
               </div>
               <div className="flex items-center gap-1">
@@ -259,13 +285,8 @@ const Scripts = () => {
             </div>
             <div className="space-y-3">
               <p className="text-sm text-foreground-secondary">
-                关联主机组: <span className="font-medium text-foreground">{getHostGroupName(script.host_group_id)}</span>
+                关联主机组: <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-xs font-medium dark:bg-blue-900/20 dark:text-blue-300">{getHostGroupName(script.host_group_id)}</span>
               </p>
-              <div className="bg-background-secondary rounded-lg p-3">
-                <pre className="text-xs text-foreground-secondary font-mono whitespace-pre-wrap break-words">
-                  {script.content.substring(0, 200)}{script.content.length > 200 ? '...' : ''}
-                </pre>
-              </div>
             </div>
           </div>
         ))}
@@ -299,20 +320,17 @@ const Scripts = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">关联主机组</label>
-            <select
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            <label className="block text-sm font-medium text-gray-300 mb-2">主机组 *</label>
+            <CustomSelect
               value={formData.host_group_id}
-              onChange={(e) => setFormData({...formData, host_group_id: e.target.value})}
+              onChange={(value) => setFormData({ ...formData, host_group_id: value })}
+              options={[
+                { value: '', label: '选择主机组' },
+                ...hostGroups.map(group => ({ value: group.id, label: group.name }))
+              ]}
+              placeholder="选择主机组"
               required
-            >
-              <option value="">请选择主机组</option>
-              {Array.isArray(hostGroups) && hostGroups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
+            />
           </div>
           
           <div>
@@ -361,6 +379,34 @@ const Scripts = () => {
         onApply={handleAISuggestion}
         type="shell"
       />
+      
+      {/* 确认弹窗 */}
+      <Modal 
+        isOpen={showConfirmModal} 
+        onClose={() => setShowConfirmModal(false)}
+        title={confirmConfig.title}
+      >
+        <div className="space-y-4">
+          <p className="text-foreground whitespace-pre-line">{confirmConfig.message}</p>
+          
+          <div className="flex justify-end gap-3 pt-4">
+            <button 
+              type="button" 
+              className="px-4 py-2 text-foreground-secondary hover:text-foreground hover:bg-background-secondary rounded-lg transition-colors"
+              onClick={() => setShowConfirmModal(false)}
+            >
+              取消
+            </button>
+            <button 
+              type="button" 
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+              onClick={confirmConfig.onConfirm}
+            >
+              确认
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Play, Trash2, Eye, RefreshCw, GitBranch, Server, Clock, CheckCircle, XCircle, Loader } from 'lucide-react';
 import { deploymentAPI, hostGroupAPI } from '../services/api';
+import CustomSelect from '../components/CustomSelect';
 
 const Deployment = () => {
   const [tasks, setTasks] = useState([]);
@@ -267,21 +268,19 @@ const Deployment = () => {
                   placeholder="main"
                 />
               </div>
-              
+        
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">目标主机组 *</label>
-                <select
+                <CustomSelect
                   value={newTask.host_group_id}
-                  onChange={(e) => setNewTask({ ...newTask, host_group_id: e.target.value })}
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
-                >
-                  <option value="">选择主机组</option>
-                  {hostGroups.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(value) => setNewTask({ ...newTask, host_group_id: value })}
+                  options={[
+                    { value: '', label: '选择主机组' },
+                    ...hostGroups.map(group => ({ value: group.id, label: group.name }))
+                  ]}
+                  placeholder="选择主机组"
+                  required
+                />
               </div>
               
               <div>

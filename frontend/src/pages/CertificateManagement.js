@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Download, RefreshCw, Shield, Calendar, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import { certificateAPI } from '../services/api';
 import Modal from '../components/Modal';
+import CustomSelect from '../components/CustomSelect';
 
 const CertificateManagement = () => {
   const [certificates, setCertificates] = useState([]);
@@ -301,14 +302,15 @@ const CertificateManagement = () => {
 
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">证书类型</label>
-            <select
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            <CustomSelect
               value={formData.type}
-              onChange={(e) => setFormData({...formData, type: e.target.value})}
-            >
-              <option value="letsencrypt">Let's Encrypt (免费)</option>
-              <option value="self_signed">自签名证书</option>
-            </select>
+              onChange={(value) => setFormData({...formData, type: value})}
+              options={[
+                { value: 'letsencrypt', label: "Let's Encrypt (免费)" },
+                { value: 'self_signed', label: '自签名证书' }
+              ]}
+              placeholder="选择证书类型"
+            />
           </div>
 
           {formData.type === 'letsencrypt' && (

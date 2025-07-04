@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Play, Copy, Download, Search, Filter, Container } from 'lucide-react';
 import Modal from '../components/Modal';
+import CustomSelect from '../components/CustomSelect';
 
 const DockerTemplates = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -217,17 +218,19 @@ services:
         {/* 分类筛选区域 */}
         <div className="relative max-w-xs">
           <Filter size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary" />
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="w-full pl-10 pr-8 py-2 border-2 border-primary rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary appearance-none cursor-pointer"
-          >
-            {categories.map(category => (
-              <option key={category.value} value={category.value}>
-                {category.label}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary w-4 h-4" />
+            <CustomSelect
+              value={selectedCategory}
+              onChange={setSelectedCategory}
+              options={[
+                { value: 'all', label: '全部分类' },
+                ...categories.map(category => ({ value: category, label: category }))
+              ]}
+              placeholder="选择分类"
+              className="pl-10"
+            />
+          </div>
         </div>
       </div>
       {/* 模板网格 */}

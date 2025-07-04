@@ -436,17 +436,6 @@ const HostMonitoring = () => {
           {/* 根据优化后的逻辑显示内容 */}
           {shouldShowSkeleton ? (
             <div className="space-y-6">
-              {/* 统一的加载状态显示 */}
-              <div className="flex items-center justify-center py-8">
-                <div className="flex items-center gap-3">
-                  <LoadingSpinner size="md" />
-                  <span className="text-gray-300">
-                    正在加载{activeTab === 'system' ? '系统监控' : '进程监控'}数据
-                  </span>
-                  <PulseLoader />
-                </div>
-              </div>
-              
               {/* 根据当前标签显示不同的骨架屏 */}
               {activeTab === 'system' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
