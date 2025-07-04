@@ -29,8 +29,6 @@ func GetHostGroups(c *gin.Context) {
 		}
 		hostGroups = append(hostGroups, hg)
 	}
-
-	// 统一返回格式，与其他接口保持一致
 	c.JSON(http.StatusOK, gin.H{"data": hostGroups})
 }
 

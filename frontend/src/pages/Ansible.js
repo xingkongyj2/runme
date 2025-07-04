@@ -44,9 +44,12 @@ const Ansible = () => {
   const fetchHostGroups = async () => {
     try {
       const response = await hostGroupAPI.getAll();
-      setHostGroups(response.data || []);
+      // 修改：response.data.data 才是真正的数组
+      const data = response.data.data || [];
+      setHostGroups(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to fetch host groups:', error);
+      setHostGroups([]);
     }
   };
 
@@ -127,6 +130,7 @@ const Ansible = () => {
   };
 
   const getHostGroupName = (hostGroupId) => {
+    if (!Array.isArray(hostGroups)) return '未知主机组';
     const group = hostGroups.find(g => g.id === hostGroupId);
     return group ? group.name : '未知主机组';
   };
@@ -305,7 +309,7 @@ const Ansible = () => {
               required
             >
               <option value="">请选择主机组</option>
-              {hostGroups.map((group) => (
+              {Array.isArray(hostGroups) && hostGroups.map((group) => (
                 <option key={group.id} value={group.id}>
                   {group.name}
                 </option>

@@ -16,12 +16,14 @@ const HostMonitoring = () => {
   const fetchHostGroups = useCallback(async () => {
     try {
       const response = await hostGroupAPI.getAll();
+      // 修改：response.data.data 才是真正的数组
       const groups = response.data.data || [];
       
       setHostGroups(groups);
       setLoading(false);
     } catch (error) {
       console.error('Failed to fetch host groups:', error);
+      setHostGroups([]);
       setLoading(false);
     }
   }, []);

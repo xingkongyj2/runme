@@ -35,9 +35,12 @@ const Deployment = () => {
   const fetchHostGroups = async () => {
     try {
       const response = await hostGroupAPI.getAll();
-      setHostGroups(response.data || []);
+      // 修改：response.data.data 才是真正的数组
+      const data = response.data.data || [];
+      setHostGroups(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to fetch host groups:', error);
+      setHostGroups([]);
     }
   };
 
