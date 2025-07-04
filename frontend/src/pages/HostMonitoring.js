@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Monitor, Cpu, HardDrive, Wifi, Activity, Users } from 'lucide-react';
-import { hostGroupAPI, monitoringAPI } from '../services/api';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Monitor, Cpu, Activity, HardDrive, Wifi } from 'lucide-react';
+import { monitoringAPI, hostGroupAPI } from '../services/api';
 
 const HostMonitoring = () => {
   const [activeTab, setActiveTab] = useState('system');
@@ -9,21 +9,11 @@ const HostMonitoring = () => {
   const [systemData, setSystemData] = useState({});
   const [processData, setProcessData] = useState({});
   const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState({}); // 跟踪每个分组的数据加载状态
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false); // 跟踪初始数据是否已加载
 
-  useEffect(() => {
-    fetchHostGroups();
-  }, []);
-
-  useEffect(() => {
-    if (hostGroups.length > 0) {
-      fetchMonitoringData();
-      const interval = setInterval(fetchMonitoringData, 3000); // 每3秒更新一次
-      return () => clearInterval(interval);
-    }
-  }, [hostGroups, activeTab, activeGroupTab]);
-
-  // 在fetchHostGroups函数中添加本地监控选项
-  const fetchHostGroups = async () => {
+  // 获取主机分组
+  const fetchHostGroups = useCallback(async () => {
     try {
       const response = await hostGroupAPI.getAll();
       const groups = response.data.data || [];
@@ -34,26 +24,114 @@ const HostMonitoring = () => {
       console.error('Failed to fetch host groups:', error);
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchMonitoringData = async () => {
+  // 获取所有分组的监控数据 - 使用批量接口
+  const fetchAllGroupsMonitoringData = useCallback(async (isBackgroundUpdate = false) => {
     if (hostGroups.length === 0) return;
-    
-    const currentGroup = hostGroups[activeGroupTab];
-    if (!currentGroup) return;
 
+    // 只有在没有任何数据时才设置加载状态
+    const currentData = activeTab === 'system' ? systemData : processData;
+    const hasAnyData = Object.keys(currentData).some(groupId => 
+      currentData[groupId] && currentData[groupId].length > 0
+    );
+    
+    if (!hasAnyData && !isBackgroundUpdate) {
+      const loadingState = {};
+      hostGroups.forEach(group => {
+        loadingState[group.id] = true;
+      });
+      setDataLoading(loadingState);
+    }
+
+    const groupIds = hostGroups.map(group => group.id);
+    
     try {
       if (activeTab === 'system') {
-        const response = await monitoringAPI.getSystemInfo(currentGroup.id);
-        setSystemData(prev => ({ ...prev, [currentGroup.id]: response.data.data }));
+        const response = await monitoringAPI.getBatchSystemInfo(groupIds);
+        setSystemData(response.data.data);
       } else {
-        const response = await monitoringAPI.getProcessInfo(currentGroup.id);
-        setProcessData(prev => ({ ...prev, [currentGroup.id]: response.data.data }));
+        const response = await monitoringAPI.getBatchProcessInfo(groupIds);
+        setProcessData(response.data.data);
+      }
+      
+      // 只有在没有数据时才需要清除加载状态
+      if (!hasAnyData && !isBackgroundUpdate) {
+        setTimeout(() => {
+          setDataLoading({});
+          setInitialDataLoaded(true);
+        }, 100); // 增加延迟确保数据完全渲染
+      } else {
+        // 确保初始状态已设置
+        if (!initialDataLoaded) {
+          setInitialDataLoaded(true);
+        }
       }
     } catch (error) {
-      console.error('Failed to fetch monitoring data:', error);
+      console.error('Failed to fetch batch monitoring data:', error);
+      // 如果批量接口失败，回退到单个接口
+      await fetchAllGroupsMonitoringDataFallback(isBackgroundUpdate);
     }
-  };
+  }, [hostGroups, activeTab, systemData, processData, initialDataLoaded]);
+
+  // 回退方案：单独获取每个分组的数据
+  const fetchAllGroupsMonitoringDataFallback = useCallback(async (isBackgroundUpdate = false) => {
+    // 检查是否有任何数据
+    const currentData = activeTab === 'system' ? systemData : processData;
+    const hasAnyData = Object.keys(currentData).some(groupId => 
+      currentData[groupId] && currentData[groupId].length > 0
+    );
+    
+    const promises = hostGroups.map(async (group) => {
+      // 只有在没有任何数据时才设置加载状态
+      if (!hasAnyData && !isBackgroundUpdate) {
+        setDataLoading(prev => ({ ...prev, [group.id]: true }));
+      }
+      
+      try {
+        if (activeTab === 'system') {
+          const response = await monitoringAPI.getSystemInfo(group.id);
+          setSystemData(prev => ({ ...prev, [group.id]: response.data.data }));
+        } else {
+          const response = await monitoringAPI.getProcessInfo(group.id);
+          setProcessData(prev => ({ ...prev, [group.id]: response.data.data }));
+        }
+      } catch (error) {
+        console.error(`Failed to fetch monitoring data for group ${group.name}:`, error);
+        // 设置空数据以避免无限加载
+        if (activeTab === 'system') {
+          setSystemData(prev => ({ ...prev, [group.id]: [] }));
+        } else {
+          setProcessData(prev => ({ ...prev, [group.id]: [] }));
+        }
+      } finally {
+        // 只有在没有数据时才清除加载状态
+        if (!hasAnyData && !isBackgroundUpdate) {
+          setDataLoading(prev => ({ ...prev, [group.id]: false }));
+        }
+      }
+    });
+
+    await Promise.allSettled(promises);
+    setInitialDataLoaded(true);
+  }, [hostGroups, activeTab, systemData, processData]);
+
+  useEffect(() => {
+    fetchHostGroups();
+  }, [fetchHostGroups]);
+
+  useEffect(() => {
+    if (hostGroups.length > 0) {
+      // 初始加载所有分组的监控数据
+      fetchAllGroupsMonitoringData();
+      
+      // 设置定时器，每3秒更新所有分组的数据
+      const interval = setInterval(() => {
+        fetchAllGroupsMonitoringData(true); // 传入true表示是后台静默更新
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [hostGroups, activeTab, fetchAllGroupsMonitoringData]);
 
   const renderSystemCard = (host) => (
     <div key={host.ip} className="bg-card rounded-lg p-6 border border-gray-600 shadow-sm">
@@ -165,17 +243,132 @@ const HostMonitoring = () => {
     </div>
   );
 
+  // 加载动画组件
+  const LoadingSpinner = ({ size = 'md', className = '' }) => {
+    const sizeClasses = {
+      sm: 'w-4 h-4',
+      md: 'w-6 h-6',
+      lg: 'w-8 h-8',
+      xl: 'w-12 h-12'
+    };
+    
+    return (
+      <div className={`${sizeClasses[size]} ${className}`}>
+        <div className="relative w-full h-full">
+          <div className="absolute inset-0 border-2 border-gray-600 rounded-full"></div>
+          <div className="absolute inset-0 border-2 border-transparent border-t-green-400 rounded-full animate-spin"></div>
+        </div>
+      </div>
+    );
+  };
+
+  // 脉冲加载动画组件
+  const PulseLoader = ({ className = '' }) => (
+    <div className={`flex space-x-1 ${className}`}>
+      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0ms' }}></div>
+      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '150ms' }}></div>
+      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '300ms' }}></div>
+    </div>
+  );
+
+  // 骨架屏加载组件
+  const SkeletonCard = () => (
+    <div className="bg-card rounded-lg p-6 border border-gray-600 shadow-sm animate-pulse">
+      <div className="flex items-center justify-between mb-4">
+        <div className="h-5 bg-gray-700 rounded w-32"></div>
+        <div className="w-3 h-3 bg-gray-700 rounded-full"></div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-gray-700 rounded"></div>
+              <div className="h-3 bg-gray-700 rounded w-12"></div>
+            </div>
+            <div className="w-full bg-gray-700 rounded-full h-2"></div>
+            <div className="h-3 bg-gray-700 rounded w-8"></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // 进程卡片骨架屏组件
+  const ProcessSkeletonCard = () => (
+    <div className="bg-card rounded-lg p-4 border border-gray-600 shadow-sm animate-pulse">
+      <div className="flex items-center justify-between mb-3">
+        <div className="h-4 bg-gray-700 rounded w-24"></div>
+        <div className="h-3 bg-gray-700 rounded w-16"></div>
+      </div>
+      
+      <div className="grid grid-cols-3 gap-3 text-xs mb-2">
+        <div className="space-y-1">
+          <div className="h-3 bg-gray-700 rounded w-8"></div>
+          <div className="h-4 bg-gray-700 rounded w-12"></div>
+        </div>
+        <div className="space-y-1">
+          <div className="h-3 bg-gray-700 rounded w-8"></div>
+          <div className="h-4 bg-gray-700 rounded w-12"></div>
+        </div>
+        <div className="space-y-1">
+          <div className="h-3 bg-gray-700 rounded w-8"></div>
+          <div className="h-4 bg-gray-700 rounded w-12"></div>
+        </div>
+      </div>
+      
+      <div className="h-3 bg-gray-700 rounded w-full"></div>
+    </div>
+  );
+
+  // 使用 useMemo 优化性能
+  const hasAnyGroupLoading = useMemo(() => 
+    Object.values(dataLoading).some(loading => loading),
+    [dataLoading]
+  );
+
+  const hasAnyDataInCurrentTab = useMemo(() => {
+    const currentData = activeTab === 'system' ? systemData : processData;
+    return Object.keys(currentData).some(groupId => 
+      currentData[groupId] && currentData[groupId].length > 0
+    );
+  }, [activeTab, systemData, processData]);
+
+  const currentGroup = hostGroups[activeGroupTab];
+  const currentGroupData = activeTab === 'system' 
+    ? systemData[currentGroup?.id] || []
+    : processData[currentGroup?.id] || [];
+
+  const isCurrentGroupLoading = currentGroup && dataLoading[currentGroup.id];
+  
+  // 改进的显示逻辑
+  const shouldShowSkeleton = (!hasAnyDataInCurrentTab && hasAnyGroupLoading) || isCurrentGroupLoading;
+  const shouldShowNoData = currentGroupData.length === 0 && !shouldShowSkeleton && initialDataLoaded;
+  
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-white">加载中...</div>
+      <div className="space-y-6">
+        {/* 页面标题 */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Monitor size={24} className="text-primary" />
+            <h1 className="text-2xl font-bold text-foreground">主机监控</h1>
+          </div>
+        </div>
+
+        {/* 加载状态 */}
+        <div className="flex flex-col items-center justify-center py-20 space-y-6">
+          <LoadingSpinner size="xl" />
+          <div className="text-center space-y-2">
+            <div className="text-lg text-white font-medium">正在加载主机分组</div>
+            <div className="flex items-center justify-center gap-2 text-gray-400">
+              <span>请稍候</span>
+              <PulseLoader />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
-
-  const currentGroupData = activeTab === 'system' 
-    ? systemData[hostGroups[activeGroupTab]?.id] || []
-    : processData[hostGroups[activeGroupTab]?.id] || [];
 
   return (
     <div className="space-y-6">
@@ -238,20 +431,59 @@ const HostMonitoring = () => {
 
         {/* 内容区域 */}
         <div className="space-y-4">
-          {activeTab === 'system' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {currentGroupData.map(renderSystemCard)}
+          {/* 根据优化后的逻辑显示内容 */}
+          {shouldShowSkeleton ? (
+            <div className="space-y-6">
+              {/* 统一的加载状态显示 */}
+              <div className="flex items-center justify-center py-8">
+                <div className="flex items-center gap-3">
+                  <LoadingSpinner size="md" />
+                  <span className="text-gray-300">
+                    正在加载{activeTab === 'system' ? '系统监控' : '进程监控'}数据
+                  </span>
+                  <PulseLoader />
+                </div>
+              </div>
+              
+              {/* 根据当前标签显示不同的骨架屏 */}
+              {activeTab === 'system' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[1, 2, 3, 4, 5, 6].map(i => (
+                    <SkeletonCard key={i} />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                    <ProcessSkeletonCard key={i} />
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {currentGroupData.map(renderProcessCard)}
-            </div>
-          )}
-          
-          {currentGroupData.length === 0 && (
-            <div className="text-center py-12">
-              <div className="text-gray-400">暂无数据</div>
-            </div>
+            /* 正常数据显示 */
+            <>
+              {activeTab === 'system' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {currentGroupData.map(renderSystemCard)}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {currentGroupData.map(renderProcessCard)}
+                </div>
+              )}
+              
+              {shouldShowNoData && (
+                <div className="text-center py-12">
+                  <div className="space-y-3">
+                    <div className="text-gray-400">暂无数据</div>
+                    <div className="text-sm text-gray-500">
+                      {activeTab === 'system' ? '该主机组当前没有可用的系统监控数据' : '该主机组当前没有可用的进程监控数据'}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

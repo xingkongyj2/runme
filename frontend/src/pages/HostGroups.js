@@ -28,12 +28,15 @@ const HostGroups = () => {
   const fetchHostGroups = async () => {
     try {
       const response = await hostGroupAPI.getAll();
-      const groups = response.data || [];
-      setHostGroups(groups);
+      // 修复：确保 groups 是数组
+      const groups = response.data?.data || response.data || [];
+      // 添加类型检查
+      const validGroups = Array.isArray(groups) ? groups : [];
+      setHostGroups(validGroups);
       
       // 获取每个主机组的主机数量
       const counts = {};
-      for (const group of groups) {
+      for (const group of validGroups) {
         try {
           const hostResponse = await hostGroupAPI.getHosts(group.id);
           counts[group.id] = hostResponse.data?.data?.length || 0;
@@ -44,6 +47,8 @@ const HostGroups = () => {
       setHostCounts(counts);
     } catch (error) {
       console.error('Failed to fetch host groups:', error);
+      // 确保在错误情况下也设置为空数组
+      setHostGroups([]);
     } finally {
       setLoading(false);
     }
@@ -115,10 +120,11 @@ const HostGroups = () => {
     fetchHostGroups(); // 刷新主机组列表
   };
 
-  const filteredGroups = hostGroups.filter(group => 
-    group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  // 修复 filter 调用，添加安全检查
+  const filteredGroups = Array.isArray(hostGroups) ? hostGroups.filter(group => 
+    group.name && group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (group.hosts && group.hosts.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  ) : [];
 
   if (loading) {
     return (

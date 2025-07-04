@@ -104,6 +104,9 @@ export const ansibleAPI = {
 export const monitoringAPI = {
   getSystemInfo: (groupId) => api.get(`/monitoring/system/${groupId}`),
   getProcessInfo: (groupId) => api.get(`/monitoring/processes/${groupId}`),
+  // 新增批量获取接口
+  getBatchSystemInfo: (groupIds) => api.get(`/monitoring/batch/system?groupIds=${groupIds.join(',')}`),
+  getBatchProcessInfo: (groupIds) => api.get(`/monitoring/batch/processes?groupIds=${groupIds.join(',')}`),
 };
 
 // AI建议API

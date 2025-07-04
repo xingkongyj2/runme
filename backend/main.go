@@ -93,6 +93,9 @@ func main() {
 			{
 				monitoring.GET("/system/:groupId", handlers.GetSystemInfo)
 				monitoring.GET("/processes/:groupId", handlers.GetProcessInfo)
+				// 新增批量获取接口
+				monitoring.GET("/batch/system", handlers.GetBatchSystemInfo)
+				monitoring.GET("/batch/processes", handlers.GetBatchProcessInfo)
 			}
 
 			// 部署路由
