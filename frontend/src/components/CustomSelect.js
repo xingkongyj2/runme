@@ -41,11 +41,12 @@ const CustomSelect = ({
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
         className={`
-          w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground 
+          w-full px-3 py-2 border rounded-lg bg-background text-foreground 
           focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
           flex items-center justify-between transition-all duration-200
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-primary/50'}
-          ${isOpen ? 'ring-2 ring-primary border-primary' : ''}
+          ${isOpen ? 'ring-2 ring-primary border-primary' : 'border-border'}
+          ${required && !value ? 'border-red-500' : ''}
         `}
       >
         <span className={selectedOption ? 'text-foreground' : 'text-foreground-secondary'}>
@@ -80,6 +81,12 @@ const CustomSelect = ({
               </button>
             ))
           )}
+        </div>
+      )}
+      
+      {required && !value && (
+        <div className="text-red-500 text-xs mt-1">
+          请选择一个选项
         </div>
       )}
     </div>

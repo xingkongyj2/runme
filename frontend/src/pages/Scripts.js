@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Play, FileText, Calendar, AlertTriangle, Sparkles } from 'lucide-react';
+import { Plus, Edit, Trash2, Play, FileText, Calendar, AlertTriangle, Sparkles, Loader2 } from 'lucide-react';
 import { scriptAPI, hostGroupAPI } from '../services/api';
 import Modal from '../components/Modal';
 import LogModal from '../components/LogModal';
 import ExperimentalModal from '../components/ExperimentalModal';
 import AISuggestionModal from '../components/AISuggestionModal';
 import CustomSelect from '../components/CustomSelect';
+import ToastContainer from '../components/ToastContainer';
+import useToast from '../hooks/useToast';
 
 const Scripts = () => {
+  // 正确使用 useToast hook
+  const { showError, showSuccess, toasts, hideToast } = useToast();
+  
   const [scripts, setScripts] = useState([]);
   const [hostGroups, setHostGroups] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,6 +24,8 @@ const Scripts = () => {
   const [editingScript, setEditingScript] = useState(null);
   const [selectedScript, setSelectedScript] = useState(null);
   const [experimentalMode, setExperimentalMode] = useState(false);
+  // 添加运行状态管理
+  const [runningScripts, setRunningScripts] = useState(new Set());
   const [formData, setFormData] = useState({
     name: '',
     content: '',
@@ -61,8 +68,16 @@ const Scripts = () => {
     }
   };
 
+  // 在handleSubmit函数中添加校验
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // 校验必填字段
+    if (!formData.host_group_id) {
+      showError('请选择主机组');
+      return;
+    }
+    
     try {
       const submitData = {
         ...formData,
@@ -80,7 +95,7 @@ const Scripts = () => {
       fetchScripts();
     } catch (error) {
       console.error('Failed to save script:', error);
-      alert('保存失败，请检查输入信息');
+      showError('保存失败，请检查输入信息');
     }
   };
 
@@ -99,15 +114,14 @@ const Scripts = () => {
       title: '删除确认',
       message: '确定要删除这个脚本吗？删除后将无法恢复。',
       onConfirm: async () => {
+        // 立即关闭确认弹窗
+        setShowConfirmModal(false);
         try {
           await scriptAPI.delete(id);
           fetchScripts();
-          setShowConfirmModal(false);
         } catch (error) {
           console.error('Failed to delete script:', error);
-          // 可以继续使用 alert 或者也改为 Modal
-          alert('删除失败');
-          setShowConfirmModal(false);
+          showError('删除失败');
         }
       }
     });
@@ -115,36 +129,69 @@ const Scripts = () => {
   };
 
   const handleExecute = async (script) => {
+    // 实验模式
     if (experimentalMode) {
       setConfirmConfig({
         title: '实验模式执行确认',
         message: `确定要在实验主机模式下执行脚本 "${script.name}" 吗？\n\n系统将随机选择一台主机进行测试，确认无问题后再继续执行剩余主机。`,
         onConfirm: async () => {
+          // 添加到运行状态
+          setRunningScripts(prev => new Set([...prev, script.id]));
           try {
             const response = await scriptAPI.executeExperimental(script.id);
             setExperimentalResult(response.data);
             setShowExperimentalModal(true);
             setShowConfirmModal(false);
+            showSuccess(`实验模式执行已启动：${script.name}`, '执行成功');
           } catch (error) {
             console.error('Failed to execute script in experimental mode:', error);
-            alert('实验模式执行失败');
+            showError('实验模式执行失败');
             setShowConfirmModal(false);
+          } finally {
+            // 3秒后移除运行状态
+            setTimeout(() => {
+              setRunningScripts(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(script.id);
+                return newSet;
+              });
+            }, 3000);
           }
         }
       });
     } else {
+      // 常规模式
+      // 常规模式
       setConfirmConfig({
         title: '执行确认',
         message: `确定要执行脚本 "${script.name}" 吗？`,
         onConfirm: async () => {
+          // 1. 立即关闭确认弹窗
+          setShowConfirmModal(false);
+          
+          // 2. 立即显示Toast
+          showSuccess(`脚本执行已启动：${script.name}，请查看日志了解执行结果`, '执行成功');
+          
+          // 3. 等待Toast显示完成后再设置运行状态（延迟更长时间确保Toast完全显示）
+          setTimeout(() => {
+            setRunningScripts(prev => new Set([...prev, script.id]));
+          }, 100); // 增加延迟时间到100ms
+          
           try {
+            // 4. 调用API
             await scriptAPI.execute(script.id);
-            alert('脚本执行已启动，请查看日志了解执行结果');
-            setShowConfirmModal(false);
           } catch (error) {
             console.error('Failed to execute script:', error);
-            alert('执行失败');
-            setShowConfirmModal(false);
+            showError('执行失败');
+          } finally {
+            // 3秒后移除运行状态
+            setTimeout(() => {
+              setRunningScripts(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(script.id);
+                return newSet;
+              });
+            }, 3000);
           }
         }
       });
@@ -171,10 +218,10 @@ const Scripts = () => {
       });
       setShowExperimentalModal(false);
       setExperimentalResult(null);
-      alert('剩余主机执行已启动，请查看日志了解执行结果');
+      showError('剩余主机执行已启动，请查看日志了解执行结果');
     } catch (error) {
       console.error('Failed to continue execution:', error);
-      alert('继续执行失败');
+      showError('继续执行失败');
     }
   };
 
@@ -242,54 +289,66 @@ const Scripts = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {scripts.map((script) => (
-          <div key={script.id} className="bg-card rounded-xl border border-border p-6 hover:shadow-lg transition-shadow">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <h3 className="font-semibold text-foreground truncate">{script.name}</h3>
+        {scripts.map((script) => {
+          const isRunning = runningScripts.has(script.id);
+          return (
+            <div key={script.id} className="bg-card rounded-xl border border-border p-6 hover:shadow-lg transition-shadow">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <h3 className="font-semibold text-foreground truncate">{script.name}</h3>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button 
+                    className={`p-2 rounded-lg transition-colors ${
+                      isRunning
+                        ? 'text-gray-400 cursor-not-allowed'
+                        : experimentalMode 
+                          ? 'text-orange-600 hover:text-orange-800 hover:bg-orange-50 dark:text-orange-400 dark:hover:text-orange-300 dark:hover:bg-orange-900/20'
+                          : 'text-green-600 hover:text-green-800 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20'
+                    }`}
+                    onClick={() => !isRunning && handleExecute(script)}
+                    disabled={isRunning}
+                    title={isRunning ? "脚本执行中..." : (experimentalMode ? "实验模式执行脚本" : "执行脚本")}
+                  >
+                    {isRunning ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : experimentalMode ? (
+                      <AlertTriangle size={16} />
+                    ) : (
+                      <Play size={16} />
+                    )}
+                  </button>
+                  <button 
+                    className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20"
+                    onClick={() => handleViewLogs(script)}
+                    title="查看日志"
+                  >
+                    <Calendar size={16} />
+                  </button>
+                  <button 
+                    className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors dark:text-gray-400 dark:hover:text-gray-300 dark:hover:bg-gray-900/20"
+                    onClick={() => handleEdit(script)}
+                    title="编辑"
+                  >
+                    <Edit size={16} />
+                  </button>
+                  <button 
+                    className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
+                    onClick={() => handleDelete(script.id)}
+                    title="删除"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <button 
-                  className={`p-2 rounded-lg transition-colors ${
-                    experimentalMode 
-                      ? 'text-orange-600 hover:text-orange-800 hover:bg-orange-50 dark:text-orange-400 dark:hover:text-orange-300 dark:hover:bg-orange-900/20'
-                      : 'text-green-600 hover:text-green-800 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20'
-                  }`}
-                  onClick={() => handleExecute(script)}
-                  title={experimentalMode ? "实验模式执行脚本" : "执行脚本"}
-                >
-                  {experimentalMode ? <AlertTriangle size={16} /> : <Play size={16} />}
-                </button>
-                <button 
-                  className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20"
-                  onClick={() => handleViewLogs(script)}
-                  title="查看日志"
-                >
-                  <Calendar size={16} />
-                </button>
-                <button 
-                  className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors dark:text-gray-400 dark:hover:text-gray-300 dark:hover:bg-gray-900/20"
-                  onClick={() => handleEdit(script)}
-                  title="编辑"
-                >
-                  <Edit size={16} />
-                </button>
-                <button 
-                  className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
-                  onClick={() => handleDelete(script.id)}
-                  title="删除"
-                >
-                  <Trash2 size={16} />
-                </button>
+              <div className="space-y-3">
+                <p className="text-sm text-foreground-secondary">
+                  关联主机组: <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-xs font-medium dark:bg-blue-900/20 dark:text-blue-300">{getHostGroupName(script.host_group_id)}</span>
+                </p>
               </div>
             </div>
-            <div className="space-y-3">
-              <p className="text-sm text-foreground-secondary">
-                关联主机组: <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-xs font-medium dark:bg-blue-900/20 dark:text-blue-300">{getHostGroupName(script.host_group_id)}</span>
-              </p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <Modal 
@@ -324,11 +383,8 @@ const Scripts = () => {
             <CustomSelect
               value={formData.host_group_id}
               onChange={(value) => setFormData({ ...formData, host_group_id: value })}
-              options={[
-                { value: '', label: '选择主机组' },
-                ...hostGroups.map(group => ({ value: group.id, label: group.name }))
-              ]}
-              placeholder="选择主机组"
+              options={hostGroups.map(group => ({ value: group.id, label: group.name }))}
+              placeholder="请选择主机组"
               required
             />
           </div>
@@ -407,6 +463,9 @@ const Scripts = () => {
           </div>
         </div>
       </Modal>
+      
+      {/* Toast容器 */}
+      <ToastContainer toasts={toasts} onClose={hideToast} />
     </div>
   );
 };

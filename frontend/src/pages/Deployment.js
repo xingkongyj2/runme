@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Play, Trash2, Eye, RefreshCw, GitBranch, Server, Clock, CheckCircle, XCircle, Loader } from 'lucide-react';
 import { deploymentAPI, hostGroupAPI } from '../services/api';
 import CustomSelect from '../components/CustomSelect';
+import ToastContainer from '../components/ToastContainer';
+import useToast from '../hooks/useToast';
 
 const Deployment = () => {
   const [tasks, setTasks] = useState([]);
@@ -18,6 +20,7 @@ const Deployment = () => {
     host_group_id: '',
     description: ''
   });
+  const { toasts, showError, hideToast } = useToast();
 
   useEffect(() => {
     fetchTasks();
@@ -45,7 +48,14 @@ const Deployment = () => {
     }
   };
 
+  // 在createTask函数中添加校验
   const createTask = async () => {
+    // 校验必填字段
+    if (!newTask.host_group_id) {
+      showError('请选择目标主机组');
+      return;
+    }
+    
     if (!newTask.name || !newTask.github_url || !newTask.host_group_id) {
       alert('请填写所有必填字段');
       return;
@@ -274,11 +284,8 @@ const Deployment = () => {
                 <CustomSelect
                   value={newTask.host_group_id}
                   onChange={(value) => setNewTask({ ...newTask, host_group_id: value })}
-                  options={[
-                    { value: '', label: '选择主机组' },
-                    ...hostGroups.map(group => ({ value: group.id, label: group.name }))
-                  ]}
-                  placeholder="选择主机组"
+                  options={hostGroups.map(group => ({ value: group.id, label: group.name }))}
+                  placeholder="请选择主机组"
                   required
                 />
               </div>
@@ -369,6 +376,9 @@ const Deployment = () => {
           </div>
         </div>
       )}
+
+      {/* Toast容器 */}
+      <ToastContainer toasts={toasts} onClose={hideToast} />
     </div>
   );
 };

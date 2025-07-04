@@ -1,24 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Play, Settings, Calendar, AlertTriangle, Sparkles } from 'lucide-react';
+import { Plus, Edit, Trash2, Play, Settings, Calendar, AlertTriangle, Sparkles, Loader2 } from 'lucide-react';
 import { ansibleAPI, hostGroupAPI } from '../services/api';
 import Modal from '../components/Modal';
 import LogModal from '../components/LogModal';
 import ExperimentalModal from '../components/ExperimentalModal';
 import AISuggestionModal from '../components/AISuggestionModal';
 import CustomSelect from '../components/CustomSelect';
+import ToastContainer from '../components/ToastContainer';
+import useToast from '../hooks/useToast';
 
 const Ansible = () => {
+  // 正确使用 useToast hook
+  const { showError, showSuccess, toasts, hideToast } = useToast();
+  
   const [playbooks, setPlaybooks] = useState([]);
   const [hostGroups, setHostGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showLogModal, setShowLogModal] = useState(false);
   const [showExperimentalModal, setShowExperimentalModal] = useState(false);
-  const [showAISuggestionModal, setShowAISuggestionModal] = useState(false); // 添加缺少的状态
+  const [showAISuggestionModal, setShowAISuggestionModal] = useState(false);
   const [experimentalResult, setExperimentalResult] = useState(null);
   const [editingPlaybook, setEditingPlaybook] = useState(null);
   const [selectedPlaybook, setSelectedPlaybook] = useState(null);
   const [experimentalMode, setExperimentalMode] = useState(false);
+  // 添加运行状态管理
+  const [runningPlaybooks, setRunningPlaybooks] = useState(new Set());
   const [formData, setFormData] = useState({
     name: '',
     content: '',
@@ -62,8 +69,15 @@ const Ansible = () => {
     }
   };
 
+  // 在handleSubmit函数中添加校验
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // 校验必填字段
+    if (!formData.host_group_id) {
+      showError('请选择主机组');
+      return;
+    }
     try {
       const submitData = {
         ...formData,
@@ -81,7 +95,7 @@ const Ansible = () => {
       fetchPlaybooks();
     } catch (error) {
       console.error('Failed to save playbook:', error);
-      alert('保存失败，请检查输入信息');
+      showError('保存失败，请检查输入信息');
     }
   };
 
@@ -107,7 +121,7 @@ const Ansible = () => {
           setShowConfirmModal(false);
         } catch (error) {
           console.error('Failed to delete playbook:', error);
-          alert('删除失败');
+          showError('删除失败');
           setShowConfirmModal(false);
         }
       }
@@ -121,15 +135,27 @@ const Ansible = () => {
         title: '实验模式执行确认',
         message: `确定要在实验主机模式下执行Ansible Playbook "${playbook.name}" 吗？\n\n系统将随机选择一台主机进行测试，确认无问题后再继续执行剩余主机。`,
         onConfirm: async () => {
+          // 添加到运行状态
+          setRunningPlaybooks(prev => new Set([...prev, playbook.id]));
           try {
             const response = await ansibleAPI.executeExperimental(playbook.id);
             setExperimentalResult(response.data);
             setShowExperimentalModal(true);
             setShowConfirmModal(false);
+            showSuccess(`实验模式执行已启动：${playbook.name}`, '执行成功');
           } catch (error) {
             console.error('Failed to execute playbook in experimental mode:', error);
-            alert('实验模式执行失败');
+            showError('实验模式执行失败');
             setShowConfirmModal(false);
+          } finally {
+            // 3秒后移除运行状态
+            setTimeout(() => {
+              setRunningPlaybooks(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(playbook.id);
+                return newSet;
+              });
+            }, 3000);
           }
         }
       });
@@ -138,14 +164,25 @@ const Ansible = () => {
         title: '执行确认',
         message: `确定要执行Ansible Playbook "${playbook.name}" 吗？`,
         onConfirm: async () => {
+          // 添加到运行状态
+          setRunningPlaybooks(prev => new Set([...prev, playbook.id]));
           try {
             await ansibleAPI.execute(playbook.id);
-            alert('Ansible Playbook执行已启动，请查看日志了解执行结果');
+            showSuccess(`Ansible Playbook执行已启动：${playbook.name}，请查看日志了解执行结果`, '执行成功');
             setShowConfirmModal(false);
           } catch (error) {
             console.error('Failed to execute playbook:', error);
-            alert('执行失败');
+            showError('执行失败');
             setShowConfirmModal(false);
+          } finally {
+            // 3秒后移除运行状态
+            setTimeout(() => {
+              setRunningPlaybooks(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(playbook.id);
+                return newSet;
+              });
+            }, 3000);
           }
         }
       });
@@ -172,10 +209,10 @@ const Ansible = () => {
       });
       setShowExperimentalModal(false);
       setExperimentalResult(null);
-      alert('剩余主机执行已启动，请查看日志了解执行结果');
+      showError('剩余主机执行已启动，请查看日志了解执行结果');
     } catch (error) {
       console.error('Failed to continue execution:', error);
-      alert('继续执行失败');
+      showError('继续执行失败');
     }
   };
 
@@ -243,25 +280,36 @@ const Ansible = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {playbooks.map((playbook) => (
-          <div key={playbook.id} className="bg-card rounded-xl border border-border p-6 hover:shadow-lg transition-shadow">
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <h3 className="font-semibold text-foreground truncate">{playbook.name}</h3>
-              </div>
-              <div className="flex items-center gap-1">
-                <button 
-                  className={`p-2 rounded-lg transition-colors ${
-                    experimentalMode 
-                      ? 'text-orange-600 hover:text-orange-800 hover:bg-orange-50 dark:text-orange-400 dark:hover:text-orange-300 dark:hover:bg-orange-900/20'
-                      : 'text-green-600 hover:text-green-800 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20'
-                  }`}
-                  onClick={() => handleExecute(playbook)}
-                  title={experimentalMode ? "实验模式执行Playbook" : "执行Playbook"}
-                >
-                  {experimentalMode ? <AlertTriangle size={16} /> : <Play size={16} />}
-                </button>
-                <button 
+        {playbooks.map((playbook) => {
+          const isRunning = runningPlaybooks.has(playbook.id);
+          return (
+            <div key={playbook.id} className="bg-card rounded-xl border border-border p-6 hover:shadow-lg transition-shadow">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <h3 className="font-semibold text-foreground truncate">{playbook.name}</h3>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button 
+                    className={`p-2 rounded-lg transition-colors ${
+                      isRunning
+                        ? 'text-gray-400 cursor-not-allowed'
+                        : experimentalMode 
+                          ? 'text-orange-600 hover:text-orange-800 hover:bg-orange-50 dark:text-orange-400 dark:hover:text-orange-300 dark:hover:bg-orange-900/20'
+                          : 'text-green-600 hover:text-green-800 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20'
+                    }`}
+                    onClick={() => !isRunning && handleExecute(playbook)}
+                    disabled={isRunning}
+                    title={isRunning ? "Playbook执行中..." : (experimentalMode ? "实验模式执行Playbook" : "执行Playbook")}
+                  >
+                    {isRunning ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : experimentalMode ? (
+                      <AlertTriangle size={16} />
+                    ) : (
+                      <Play size={16} />
+                    )}
+                  </button>
+                  <button 
                   className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20"
                   onClick={() => handleViewLogs(playbook)}
                   title="查看日志"
@@ -290,7 +338,8 @@ const Ansible = () => {
               </p>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* 新增/编辑Playbook模态框 */}
@@ -326,11 +375,8 @@ const Ansible = () => {
             <CustomSelect
               value={formData.host_group_id}
               onChange={(value) => setFormData({ ...formData, host_group_id: value })}
-              options={[
-                { value: '', label: '选择主机组' },
-                ...hostGroups.map(group => ({ value: group.id, label: group.name }))
-              ]}
-              placeholder="选择主机组"
+              options={hostGroups.map(group => ({ value: group.id, label: group.name }))}
+              placeholder="请选择主机组"
               required
             />
           </div>
@@ -424,6 +470,9 @@ const Ansible = () => {
           </div>
         </div>
       </Modal>
+
+      {/* Toast容器 */}
+      <ToastContainer toasts={toasts} onClose={hideToast} />
     </div>
   );
 };
