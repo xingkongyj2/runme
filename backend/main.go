@@ -87,8 +87,6 @@ func main() {
 			// 监控路由
 			monitoring := api.Group("/monitoring")
 			{
-				monitoring.GET("/system/:groupId", handlers.GetSystemInfo)
-				monitoring.GET("/processes/:groupId", handlers.GetProcessInfo)
 				monitoring.GET("/batch/system", handlers.GetBatchSystemInfo)
 				monitoring.GET("/batch/processes", handlers.GetBatchProcessInfo)
 			}

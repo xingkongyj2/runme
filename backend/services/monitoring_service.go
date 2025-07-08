@@ -3,7 +3,6 @@ package services
 import (
 	"fmt"
 	"net"
-	"runme-backend/database"
 	"runme-backend/models"
 	"strconv"
 	"strings"
@@ -16,17 +15,6 @@ import (
 	"github.com/shirou/gopsutil/v3/process"
 	"golang.org/x/crypto/ssh"
 )
-
-// GetHostGroupByID 根据ID获取主机组
-func GetHostGroupByID(id int) (*models.HostGroup, error) {
-	var hostGroup models.HostGroup
-	err := database.DB.QueryRow("SELECT id, name, created_at, updated_at FROM host_groups WHERE id = ?", id).Scan(
-		&hostGroup.ID, &hostGroup.Name, &hostGroup.CreatedAt, &hostGroup.UpdatedAt)
-	if err != nil {
-		return nil, err
-	}
-	return &hostGroup, nil
-}
 
 // GetHostSystemInfo 获取主机系统信息
 func GetHostSystemInfo(host, username, password string, port int) models.SystemInfo {
@@ -165,7 +153,7 @@ func GetLocalSystemInfo() models.SystemInfo {
 	return systemInfo
 }
 
-// GetLocalProcessInfo 获取本地进程信息
+// 获取本地进程信息
 func GetLocalProcessInfo() []models.ProcessInfo {
 	var processes []models.ProcessInfo
 
@@ -354,7 +342,7 @@ done`
 	return processes, nil
 }
 
-// formatBytes 格式化字节数
+// 格式化字节数
 func formatBytes(bytes int64) string {
 	const unit = 1024
 	if bytes < unit {
