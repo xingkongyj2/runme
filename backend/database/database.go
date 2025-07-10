@@ -212,6 +212,22 @@ func createAllTables() {
 	);
 	`
 
+	// 创建Docker模板表
+	dockerTemplateTable := `
+	CREATE TABLE IF NOT EXISTS docker_templates (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		description TEXT,
+		image TEXT NOT NULL,
+		ports TEXT,
+		volumes TEXT,
+		environment TEXT,
+		docker_compose TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+	`
+
 	// 按顺序创建所有表
 	tables := []string{
 		usersTable,
@@ -227,6 +243,7 @@ func createAllTables() {
 		deploymentLogTable,
 		certificateTable,
 		certificateLogTable,
+		dockerTemplateTable,
 	}
 
 	for _, table := range tables {

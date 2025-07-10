@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, PlayCircle, Settings, ScrollText, AlertTriangle, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, PlayCircle, Workflow, ScrollText, AlertTriangle, Sparkles, Loader2 } from 'lucide-react';
 import { ansibleAPI, hostGroupAPI } from '../services/api';
 import Modal from '../components/Modal';
 import LogModal from '../components/LogModal';
@@ -247,7 +247,7 @@ const Ansible = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3">
-            <Settings size={24} className="text-primary" />
+            <Workflow size={24} className="text-primary" />
             <h1 className="text-2xl font-bold text-foreground">Ansible管理</h1>
           </div>
           <div className="flex items-center gap-2">

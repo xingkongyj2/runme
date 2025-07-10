@@ -3,28 +3,37 @@ import { Plus, Edit, Trash2, Terminal, X, Wifi, Upload, Monitor, Users } from 'l
 import { hostGroupAPI, hostAPI } from '../services/api';
 import Modal from './Modal';
 
-// 将getLinuxIcon函数移到组件外部作为工具函数
-const getLinuxIcon = (osInfo) => {
-  if (!osInfo) return <Monitor size={16} className="text-gray-500" />;
+// 获取操作系统简写
+const getOSShortName = (osInfo) => {
+  if (!osInfo) return '未知';
   
   const os = osInfo.toLowerCase();
   if (os.includes('ubuntu')) {
-    return <div className="w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center text-white text-xs font-bold">U</div>;
+    return 'Ubuntu';
   } else if (os.includes('centos')) {
-    // 更贴切的CentOS图标：使用官方深蓝色，圆角矩形设计
-    return <div className="w-4 h-4 bg-blue-800 rounded-sm flex items-center justify-center text-white text-xs font-bold shadow-sm">C</div>;
+    return 'CentOS';
   } else if (os.includes('redhat') || os.includes('rhel')) {
-    return <div className="w-4 h-4 bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold">R</div>;
+    return 'RHEL';
   } else if (os.includes('debian')) {
-    return <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold">D</div>;
+    return 'Debian';
   } else if (os.includes('suse')) {
-    return <div className="w-4 h-4 bg-green-600 rounded-full flex items-center justify-center text-white text-xs font-bold">S</div>;
+    return 'SUSE';
   } else if (os.includes('alpine')) {
-    return <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-bold">A</div>;
+    return 'Alpine';
   } else if (os.includes('arch')) {
-    return <div className="w-4 h-4 bg-blue-700 rounded-full flex items-center justify-center text-white text-xs font-bold">A</div>;
+    return 'Arch';
+  } else if (os.includes('fedora')) {
+    return 'Fedora';
+  } else if (os.includes('opensuse')) {
+    return 'openSUSE';
+  } else if (os.includes('rocky')) {
+    return 'Rocky';
+  } else if (os.includes('alma')) {
+    return 'AlmaLinux';
   } else {
-    return <Monitor size={16} className="text-gray-500" />;
+    // 如果都不匹配，尝试提取第一个单词作为系统名称
+    const firstWord = osInfo.split(' ')[0];
+    return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
   }
 };
 
@@ -352,38 +361,35 @@ const HostGroupDetail = ({ group, onClose }) => {
           </div>
 
           {/* 主机列表 - 可滚动区域 */}
-          <div className="flex-1 overflow-y-auto flex justify-center">
+          <div className="flex-1 overflow-y-auto">
             {hosts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <Terminal size={48} className="text-foreground-secondary mb-4" />
                 <p className="text-foreground-secondary">暂无主机，点击上方按钮添加主机</p>
               </div>
             ) : (
-              <div className="w-full max-w-5xl">
-                <table className="w-full">
+              <div className="px-6">
+                <table className="w-full table-fixed">
                   <thead className="bg-background-secondary sticky top-0">
                     <tr>
-                      <th className="px-3 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider w-16">序号</th>
-                      <th className="px-3 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider w-32">主机IP</th>
-                      <th className="px-4 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">系统</th>
-                      <th className="px-4 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider w-20">延迟</th>
-                      <th className="px-4 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">操作</th>
+                      <th className="w-16 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">序号</th>
+                      <th className="w-32 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">主机IP</th>
+                      <th className="w-24 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">系统</th>
+                      <th className="w-20 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">延迟</th>
+                      <th className="w-32 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">操作</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {hosts.map((host, index) => (
                       <tr key={host.id} className="hover:bg-background-secondary transition-colors">
-                        <td className="px-3 py-4 text-foreground text-sm text-center">{index + 1}</td>
-                        <td className="px-3 py-4 text-foreground font-mono text-sm text-center">{host.ip}</td>
-                        <td className="px-4 py-4 text-center">
-                          <div className="flex items-center gap-2 justify-center">
-                            {getLinuxIcon(host.os_info)}
-                            <span className="text-sm text-foreground-secondary">
-                              {host.os_info || '未知'}
-                            </span>
-                          </div>
+                        <td className="w-16 py-4 text-foreground text-sm text-center">{index + 1}</td>
+                        <td className="w-32 py-4 text-foreground font-mono text-sm text-center">{host.ip}</td>
+                        <td className="w-24 py-4 text-center">
+                          <span className="text-sm text-foreground font-medium">
+                            {getOSShortName(host.os_info)}
+                          </span>
                         </td>
-                        <td className="px-4 py-4 text-center">
+                        <td className="w-20 py-4 text-center">
                           {showingResults && pingResults[host.ip] ? (
                             pingResults[host.ip].success ? (
                               <span className="text-green-500">{pingResults[host.ip].latency}ms</span>
@@ -394,7 +400,7 @@ const HostGroupDetail = ({ group, onClose }) => {
                             <span className="text-gray-500">-</span>
                           )}
                         </td>
-                        <td className="px-4 py-4 text-center">
+                        <td className="w-32 py-4 text-center">
                           <div className="flex items-center gap-2 justify-center">
                             <button 
                               className="p-2 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded-lg transition-colors dark:text-purple-400 dark:hover:text-purple-300 dark:hover:bg-purple-900/20"

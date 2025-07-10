@@ -134,4 +134,13 @@ export const certificateAPI = {
   getLogs: (id) => api.get(`/certificates/${id}/logs`)
 };
 
+// Docker模板管理API
+export const dockerTemplateAPI = {
+  getAll: () => api.get('/docker-templates'),
+  getById: (id) => api.get(`/docker-templates/${id}`),
+  create: (data) => api.post('/docker-templates', data),
+  update: (id, data) => api.put(`/docker-templates/${id}`, data),
+  delete: (id) => api.delete(`/docker-templates/${id}`)
+};
+
 export default api;

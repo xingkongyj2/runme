@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Server, FileText, Settings, Package, Monitor, Rocket, Shield } from 'lucide-react';
+import { Server, FileText, Workflow, Package, Monitor, GitBranch, Shield } from 'lucide-react';
 
 const MenuConfigContext = createContext();
 
@@ -42,7 +42,7 @@ const defaultMenuConfig = {
       id: 'ansible',
       path: '/ansible',
       name: 'Ansible管理',
-      icon: Settings,
+      icon: Workflow,
       visible: true,
       required: true // 常驻菜单，不能隐藏
     },
@@ -58,7 +58,7 @@ const defaultMenuConfig = {
       id: 'deployment',
       path: '/deployment',
       name: '项目部署',
-      icon: Rocket,
+      icon: GitBranch,
       visible: true,
       required: false
     },

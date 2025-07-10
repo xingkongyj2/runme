@@ -115,6 +115,15 @@ func main() {
 				certificates.GET("/:id/download", handlers.DownloadCertificate)
 				certificates.GET("/:id/logs", handlers.GetCertificateLogs)
 			}
+			// Docker模板管理路由
+			dockerTemplates := protected.Group("/docker-templates")
+			{
+				dockerTemplates.GET("", handlers.GetDockerTemplates)
+				dockerTemplates.GET("/:id", handlers.GetDockerTemplate)
+				dockerTemplates.POST("", handlers.CreateDockerTemplate)
+				dockerTemplates.PUT("/:id", handlers.UpdateDockerTemplate)
+				dockerTemplates.DELETE("/:id", handlers.DeleteDockerTemplate)
+			}
 		}
 	}
 	log.Println("Server starting on :8080")
