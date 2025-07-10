@@ -88,7 +88,6 @@ func main() {
 			monitoring := api.Group("/monitoring")
 			{
 				monitoring.GET("/batch/system", handlers.GetBatchSystemInfo)
-				monitoring.GET("/batch/processes", handlers.GetBatchProcessInfo)
 			}
 			// 部署路由
 			deployment := api.Group("/deployment")

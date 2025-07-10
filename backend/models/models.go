@@ -97,17 +97,6 @@ type SystemInfo struct {
 	LastUpdated time.Time `json:"last_updated"`
 }
 
-// ProcessInfo 进程信息模型
-type ProcessInfo struct {
-	PID         int     `json:"pid"`
-	Name        string  `json:"name"`
-	Command     string  `json:"command"`
-	CPUUsage    float64 `json:"cpu_usage"`
-	MemoryUsage float64 `json:"memory_usage"`
-	Port        string  `json:"port"`
-	Host        string  `json:"host"`
-}
-
 // DeploymentTask 部署任务模型
 type DeploymentTask struct {
 	ID          int       `json:"id" db:"id"`

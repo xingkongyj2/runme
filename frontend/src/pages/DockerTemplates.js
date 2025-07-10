@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { Play, Copy, Download, Search, Filter, Container } from 'lucide-react';
+import { Play, Copy, Download, Search, Container } from 'lucide-react';
 import Modal from '../components/Modal';
-import CustomSelect from '../components/CustomSelect';
 
 const DockerTemplates = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
 
@@ -14,7 +12,6 @@ const DockerTemplates = () => {
     {
       id: 1,
       name: 'Nginx',
-      category: 'web',
       description: '高性能的HTTP和反向代理服务器',
       image: 'nginx:latest',
       ports: ['80:80', '443:443'],
@@ -34,7 +31,6 @@ services:
     {
       id: 2,
       name: 'Redis',
-      category: 'database',
       description: '内存数据结构存储，用作数据库、缓存和消息代理',
       image: 'redis:alpine',
       ports: ['6379:6379'],
@@ -57,7 +53,6 @@ volumes:
     {
       id: 3,
       name: 'MySQL',
-      category: 'database',
       description: '世界上最流行的开源关系数据库',
       image: 'mysql:8.0',
       ports: ['3306:3306'],
@@ -84,7 +79,6 @@ volumes:
     {
       id: 4,
       name: 'PostgreSQL',
-      category: 'database',
       description: '先进的开源关系数据库',
       image: 'postgres:15',
       ports: ['5432:5432'],
@@ -110,7 +104,6 @@ volumes:
     {
       id: 5,
       name: 'MongoDB',
-      category: 'database',
       description: '面向文档的NoSQL数据库',
       image: 'mongo:latest',
       ports: ['27017:27017'],
@@ -135,7 +128,6 @@ volumes:
     {
       id: 6,
       name: 'Node.js',
-      category: 'runtime',
       description: 'JavaScript运行时环境',
       image: 'node:18-alpine',
       ports: ['3000:3000'],
@@ -157,18 +149,10 @@ services:
     }
   ];
 
-  const categories = [
-    { value: 'all', label: '全部' },
-    { value: 'web', label: 'Web服务' },
-    { value: 'database', label: '数据库' },
-    { value: 'runtime', label: '运行时' }
-  ];
-
   const filteredTemplates = dockerTemplates.filter(template => {
     const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          template.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || template.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    return matchesSearch;
   });
 
   const handleViewTemplate = (template) => {
@@ -201,9 +185,8 @@ services:
         </div>
       </div>
 
-      {/* 搜索和筛选区域 */}
+      {/* 搜索区域 */}
       <div className="flex flex-col sm:flex-row gap-3">
-        {/* 搜索区域 */}
         <div className="relative max-w-xs">
           <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary" />
           <input
@@ -211,26 +194,8 @@ services:
             placeholder="搜索模板名称、描述"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border-2 border-primary rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+            className="w-full pl-10 pr-4 py-2 border border-gray-600 rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
           />
-        </div>
-
-        {/* 分类筛选区域 */}
-        <div className="relative max-w-xs">
-          <Filter size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary" />
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary w-4 h-4" />
-            <CustomSelect
-              value={selectedCategory}
-              onChange={setSelectedCategory}
-              options={[
-                { value: 'all', label: '全部分类' },
-                ...categories.map(category => ({ value: category, label: category }))
-              ]}
-              placeholder="选择分类"
-              className="pl-10"
-            />
-          </div>
         </div>
       </div>
       {/* 模板网格 */}
@@ -240,9 +205,6 @@ services:
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">{template.name}</h3>
-                <span className="inline-block px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
-                  {categories.find(c => c.value === template.category)?.label}
-                </span>
               </div>
             </div>
             

@@ -12,7 +12,6 @@ import (
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/mem"
 	gopsutilNet "github.com/shirou/gopsutil/v3/net"
-	"github.com/shirou/gopsutil/v3/process"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -76,38 +75,6 @@ func GetHostSystemInfo(host, username, password string, port int) models.SystemI
 	return systemInfo
 }
 
-// GetHostProcessInfo 获取主机进程信息
-func GetHostProcessInfo(host, username, password string, port int) []models.ProcessInfo {
-	sshPort := "22"
-	if port != 0 {
-		sshPort = strconv.Itoa(port)
-	}
-
-	var processes []models.ProcessInfo
-
-	config := &ssh.ClientConfig{
-		User: username,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(password),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-		Timeout:         10 * time.Second,
-	}
-
-	conn, err := ssh.Dial("tcp", net.JoinHostPort(host, sshPort), config)
-	if err != nil {
-		return processes
-	}
-	defer conn.Close()
-
-	// 获取进程信息
-	if remoteProcesses, err := getRemoteProcessInfo(conn, host); err == nil {
-		processes = remoteProcesses
-	}
-
-	return processes
-}
-
 // 如果是本地主机，直接使用gopsutil
 func GetLocalSystemInfo() models.SystemInfo {
 	systemInfo := models.SystemInfo{
@@ -151,52 +118,6 @@ func GetLocalSystemInfo() models.SystemInfo {
 	}
 
 	return systemInfo
-}
-
-// 获取本地进程信息
-func GetLocalProcessInfo() []models.ProcessInfo {
-	var processes []models.ProcessInfo
-
-	pids, err := process.Pids()
-	if err != nil {
-		return processes
-	}
-
-	for _, pid := range pids {
-		if len(processes) >= 20 { // 限制返回前20个进程
-			break
-		}
-
-		p, err := process.NewProcess(pid)
-		if err != nil {
-			continue
-		}
-
-		name, _ := p.Name()
-		cpuPercent, _ := p.CPUPercent()
-		memPercent, _ := p.MemoryPercent()
-		cmdline, _ := p.Cmdline()
-
-		// 获取进程端口
-		var port string
-		if connections, err := p.Connections(); err == nil && len(connections) > 0 {
-			port = fmt.Sprintf("%d", connections[0].Laddr.Port)
-		}
-
-		processInfo := models.ProcessInfo{
-			PID:         int(pid),
-			Name:        name,
-			CPUUsage:    cpuPercent,
-			MemoryUsage: float64(memPercent),
-			Port:        port,
-			Command:     cmdline,
-			Host:        "localhost",
-		}
-
-		processes = append(processes, processInfo)
-	}
-
-	return processes
 }
 
 // 远程执行gopsutil相关命令的辅助函数
@@ -290,56 +211,6 @@ func getRemoteOpenPorts(conn *ssh.Client) ([]string, error) {
 	}
 
 	return strings.Split(portsStr, "\n"), nil
-}
-
-func getRemoteProcessInfo(conn *ssh.Client, host string) ([]models.ProcessInfo, error) {
-	session, err := conn.NewSession()
-	if err != nil {
-		return nil, err
-	}
-	defer session.Close()
-
-	script := `ps aux --sort=-%cpu | head -21 | tail -n +2 | while read line; do
-    PID=$(echo $line | awk '{print $2}')
-    NAME=$(echo $line | awk '{print $11}' | cut -d'/' -f1)
-    CPU=$(echo $line | awk '{print $3}')
-    MEM=$(echo $line | awk '{print $4}')
-    CMD=$(echo $line | awk '{for(i=11;i<=NF;i++) printf "%s ", $i; print ""}')
-    PORT=$(netstat -tulnp 2>/dev/null | grep $PID | head -1 | awk '{print $4}' | cut -d: -f2)
-    echo "$PID|$NAME|$CPU|$MEM|$PORT|$CMD"
-done`
-
-	output, err := session.CombinedOutput(script)
-	if err != nil {
-		return nil, err
-	}
-
-	var processes []models.ProcessInfo
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-		parts := strings.Split(line, "|")
-		if len(parts) >= 6 {
-			pid, _ := strconv.Atoi(parts[0])
-			cpu, _ := strconv.ParseFloat(parts[2], 64)
-			mem, _ := strconv.ParseFloat(parts[3], 64)
-
-			process := models.ProcessInfo{
-				PID:         pid,
-				Name:        parts[1],
-				CPUUsage:    cpu,
-				MemoryUsage: mem,
-				Port:        parts[4],
-				Command:     parts[5],
-				Host:        host,
-			}
-			processes = append(processes, process)
-		}
-	}
-
-	return processes, nil
 }
 
 // 格式化字节数

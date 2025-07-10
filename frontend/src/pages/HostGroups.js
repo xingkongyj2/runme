@@ -159,7 +159,7 @@ const HostGroups = () => {
           placeholder="搜索主机组名称、IP"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border-2 border-primary rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+          className="w-full pl-10 pr-4 py-2 border border-gray-600 rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
         />
       </div>
 
