@@ -172,8 +172,12 @@ func ExecuteAnsiblePlaybook(c *gin.Context) {
 		return
 	}
 
-	// 异步执行playbook
+	// 异步执行playbook（在当前机器上执行，连接到所有目标主机）
 	go func() {
+		// 在当前机器上执行Ansible，连接到所有主机
+		output, err := services.ExecuteAnsiblePlaybook(hosts, playbook.Content, playbook.Variables)
+
+		// 为每个主机创建执行日志记录
 		for _, host := range hosts {
 			log := models.AnsibleExecutionLog{
 				PlaybookID: playbookID,
@@ -181,23 +185,22 @@ func ExecuteAnsiblePlaybook(c *gin.Context) {
 				ExecutedAt: time.Now(),
 			}
 
-			// 执行Ansible playbook
-			output, err := services.ExecuteAnsiblePlaybook(host.IP, host.Username, host.Password, host.Port, playbook.Content, playbook.Variables)
 			if err != nil {
 				log.Status = "failed"
 				log.Error = err.Error()
+				log.Output = output // 包含错误信息
 			} else {
 				log.Status = "success"
-				log.Output = output
+				log.Output = output // 包含成功的执行输出
 			}
 
 			// 保存执行日志
-			_, err = database.DB.Exec(
+			_, saveErr := database.DB.Exec(
 				"INSERT INTO ansible_execution_logs (playbook_id, host, status, output, error, executed_at) VALUES (?, ?, ?, ?, ?, ?)",
 				log.PlaybookID, log.Host, log.Status, log.Output, log.Error, log.ExecutedAt,
 			)
-			if err != nil {
-				fmt.Printf("Failed to save execution log: %v\n", err)
+			if saveErr != nil {
+				fmt.Printf("Failed to save execution log for host %s: %v\n", host.IP, saveErr)
 			}
 		}
 	}()
@@ -238,6 +241,8 @@ func ContinueAnsibleExecution(c *gin.Context) {
 
 	// 异步执行剩余主机
 	go func() {
+		// 收集所有剩余主机信息
+		var remainingHosts []models.Host
 		for _, hostIP := range requestBody.RemainingHosts {
 			// 获取主机的认证信息
 			var host models.Host
@@ -247,29 +252,41 @@ func ContinueAnsibleExecution(c *gin.Context) {
 				fmt.Printf("Failed to get host info for %s: %v\n", hostIP, err)
 				continue
 			}
+			remainingHosts = append(remainingHosts, host)
+		}
 
+		if len(remainingHosts) == 0 {
+			fmt.Println("No valid remaining hosts found")
+			return
+		}
+
+		// 在当前机器上执行Ansible，连接到所有剩余主机
+		output, err := services.ExecuteAnsiblePlaybook(remainingHosts, playbook.Content, playbook.Variables)
+
+		// 为每个剩余主机创建执行日志记录
+		for _, host := range remainingHosts {
 			log := models.AnsibleExecutionLog{
 				PlaybookID: playbookID,
-				Host:       hostIP,
+				Host:       host.IP,
 				ExecutedAt: time.Now(),
 			}
 
-			output, err := services.ExecuteAnsiblePlaybook(host.IP, host.Username, host.Password, host.Port, playbook.Content, playbook.Variables)
 			if err != nil {
 				log.Status = "failed"
 				log.Error = err.Error()
+				log.Output = output // 包含错误信息
 			} else {
 				log.Status = "success"
-				log.Output = output
+				log.Output = output // 包含成功的执行输出
 			}
 
 			// 保存执行日志
-			_, err = database.DB.Exec(
+			_, saveErr := database.DB.Exec(
 				"INSERT INTO ansible_execution_logs (playbook_id, host, status, output, error, executed_at) VALUES (?, ?, ?, ?, ?, ?)",
 				log.PlaybookID, log.Host, log.Status, log.Output, log.Error, log.ExecutedAt,
 			)
-			if err != nil {
-				fmt.Printf("Failed to save execution log: %v\n", err)
+			if saveErr != nil {
+				fmt.Printf("Failed to save execution log for host %s: %v\n", host.IP, saveErr)
 			}
 		}
 	}()
@@ -462,7 +479,7 @@ func ExecuteAnsiblePlaybookExperimental(c *gin.Context) {
 		ExecutedAt: time.Now(),
 	}
 
-	output, err := services.ExecuteAnsiblePlaybook(experimentalHost.IP, experimentalHost.Username, experimentalHost.Password, experimentalHost.Port, playbook.Content, playbook.Variables)
+	output, err := services.ExecuteAnsiblePlaybookSingleHost(experimentalHost.IP, experimentalHost.Username, experimentalHost.Password, experimentalHost.Port, playbook.Content, playbook.Variables)
 	if err != nil {
 		log.Status = "failed"
 		log.Error = err.Error()

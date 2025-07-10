@@ -261,14 +261,19 @@ func GetExecutionLogs(c *gin.Context) {
 
 	// 获取该会话的执行日志
 	query := `
-		SELECT id, script_id, host, status, output, error, executed_at
-		FROM execution_logs
-		WHERE script_id = ? AND DATE(executed_at) = DATE((SELECT created_at FROM execution_sessions WHERE id = ?))
-		ORDER BY host
+		SELECT el.id, el.script_id, el.host, el.status, el.output, el.error, el.executed_at
+		FROM execution_logs el
+		JOIN execution_sessions es ON el.script_id = es.script_id
+		WHERE el.script_id = ? AND es.session_name = ?
+		AND el.executed_at >= (
+			SELECT created_at FROM execution_sessions 
+			WHERE script_id = ? AND session_name = ?
+		)
+		ORDER BY el.executed_at ASC
 	`
-	fmt.Printf("[DEBUG] Executing logs query with scriptID: %d, sessionID: %d\n", scriptID, sessionID)
+	fmt.Printf("[DEBUG] Executing logs query with scriptID: %d, sessionName: %s\n", scriptID, decodedSessionName)
 
-	rows, err := database.DB.Query(query, scriptID, sessionID)
+	rows, err := database.DB.Query(query, scriptID, decodedSessionName, scriptID, decodedSessionName)
 	if err != nil {
 		fmt.Printf("[DEBUG] Query error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

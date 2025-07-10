@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Play, Settings, Calendar, AlertTriangle, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, PlayCircle, Settings, ScrollText, AlertTriangle, Sparkles, Loader2 } from 'lucide-react';
 import { ansibleAPI, hostGroupAPI } from '../services/api';
 import Modal from '../components/Modal';
 import LogModal from '../components/LogModal';
@@ -164,16 +164,25 @@ const Ansible = () => {
         title: '执行确认',
         message: `确定要执行Ansible Playbook "${playbook.name}" 吗？`,
         onConfirm: async () => {
-          // 添加到运行状态
-          setRunningPlaybooks(prev => new Set([...prev, playbook.id]));
-          try {
-            await ansibleAPI.execute(playbook.id);
+          // 1. 立即关闭确认弹窗
+          setShowConfirmModal(false);
+          
+          // 2. 立即显示Toast（使用setTimeout确保在下一个事件循环中执行）
+          setTimeout(() => {
             showSuccess(`Ansible Playbook执行已启动：${playbook.name}，请查看日志了解执行结果`, '执行成功');
-            setShowConfirmModal(false);
+          }, 0);
+          
+          // 3. Toast显示后再设置按钮加载状态
+          setTimeout(() => {
+            setRunningPlaybooks(prev => new Set([...prev, playbook.id]));
+          }, 50);
+          
+          try {
+            // 4. 调用API
+            await ansibleAPI.execute(playbook.id);
           } catch (error) {
             console.error('Failed to execute playbook:', error);
             showError('执行失败');
-            setShowConfirmModal(false);
           } finally {
             // 3秒后移除运行状态
             setTimeout(() => {
@@ -284,18 +293,19 @@ const Ansible = () => {
           const isRunning = runningPlaybooks.has(playbook.id);
           return (
             <div key={playbook.id} className="bg-card rounded-xl border border-border p-6 hover:shadow-lg transition-shadow">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <h3 className="font-semibold text-foreground truncate">{playbook.name}</h3>
+              <div>
+                <div className="flex items-start justify-between mb-3">
+                  <h3 className="font-semibold text-foreground leading-tight pr-4">{playbook.name}</h3>
+                  <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-xs font-medium dark:bg-blue-900/20 dark:text-blue-300 flex-shrink-0">{getHostGroupName(playbook.host_group_id)}</span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center justify-between">
                   <button 
-                    className={`p-2 rounded-lg transition-colors ${
+                    className={`group relative p-2.5 rounded-xl transition-all duration-200 ${
                       isRunning
-                        ? 'text-gray-400 cursor-not-allowed'
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800/50 dark:text-gray-500'
                         : experimentalMode 
-                          ? 'text-orange-600 hover:text-orange-800 hover:bg-orange-50 dark:text-orange-400 dark:hover:text-orange-300 dark:hover:bg-orange-900/20'
-                          : 'text-green-600 hover:text-green-800 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20'
+                          ? 'bg-orange-100 text-orange-700 hover:bg-orange-200 hover:shadow-md dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30'
+                          : 'bg-green-100 text-green-700 hover:bg-green-200 hover:shadow-md dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30'
                     }`}
                     onClick={() => !isRunning && handleExecute(playbook)}
                     disabled={isRunning}
@@ -306,37 +316,35 @@ const Ansible = () => {
                     ) : experimentalMode ? (
                       <AlertTriangle size={16} />
                     ) : (
-                      <Play size={16} />
+                      <PlayCircle size={16} />
                     )}
                   </button>
+                  
                   <button 
-                  className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20"
-                  onClick={() => handleViewLogs(playbook)}
-                  title="查看日志"
-                >
-                  <Calendar size={16} />
-                </button>
-                <button 
-                  className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-colors dark:text-gray-400 dark:hover:text-gray-300 dark:hover:bg-gray-900/20"
-                  onClick={() => handleEdit(playbook)}
-                  title="编辑"
-                >
-                  <Edit size={16} />
-                </button>
-                <button 
-                  className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
-                  onClick={() => handleDelete(playbook.id)}
-                  title="删除"
-                >
-                  <Trash2 size={16} />
-                </button>
+                    className="group relative p-2.5 rounded-xl transition-all duration-200 bg-blue-100 text-blue-700 hover:bg-blue-200 hover:shadow-md dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                    onClick={() => handleViewLogs(playbook)}
+                    title="查看日志"
+                  >
+                    <ScrollText size={16} />
+                  </button>
+                  
+                  <button 
+                    className="group relative p-2.5 rounded-xl transition-all duration-200 bg-gray-100 text-gray-600 hover:bg-gray-200 hover:shadow-md dark:bg-gray-800/50 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+                    onClick={() => handleEdit(playbook)}
+                    title="编辑"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  
+                  <button 
+                    className="group relative p-2.5 rounded-xl transition-all duration-200 bg-red-100 text-red-600 hover:bg-red-200 hover:shadow-md dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30"
+                    onClick={() => handleDelete(playbook.id)}
+                    title="删除"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="space-y-3">
-              <p className="text-sm text-foreground-secondary">
-                关联主机组: <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-xs font-medium dark:bg-blue-900/20 dark:text-blue-300">{getHostGroupName(playbook.host_group_id)}</span>
-              </p>
-            </div>
           </div>
           );
         })}
