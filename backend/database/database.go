@@ -166,11 +166,23 @@ func createAllTables() {
 	CREATE TABLE IF NOT EXISTS deployment_logs (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		task_id INTEGER NOT NULL,
+		session_name TEXT NOT NULL,
 		host TEXT NOT NULL,
 		status TEXT NOT NULL,
 		output TEXT,
 		error TEXT,
 		deployed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (task_id) REFERENCES deployment_tasks(id)
+	);
+	`
+
+	// 创建部署会话表
+	deploymentSessionTable := `
+	CREATE TABLE IF NOT EXISTS deployment_sessions (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		task_id INTEGER NOT NULL,
+		session_name TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (task_id) REFERENCES deployment_tasks(id)
 	);
 	`
@@ -241,6 +253,7 @@ func createAllTables() {
 		ansibleExecutionSessionTable,
 		deploymentTaskTable,
 		deploymentLogTable,
+		deploymentSessionTable,
 		certificateTable,
 		certificateLogTable,
 		dockerTemplateTable,

@@ -184,3 +184,132 @@ func DeleteDeploymentTask(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Task deleted successfully"})
 }
+
+// GetDeploymentSessions 获取部署会话列表
+func GetDeploymentSessions(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
+		return
+	}
+
+	rows, err := database.DB.Query(`
+		SELECT id, task_id, session_name, created_at
+		FROM deployment_sessions WHERE task_id = ?
+		ORDER BY created_at DESC
+	`, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var sessions []models.DeploymentSession
+	for rows.Next() {
+		var session models.DeploymentSession
+		err := rows.Scan(&session.ID, &session.TaskID, &session.SessionName, &session.CreatedAt)
+		if err != nil {
+			continue
+		}
+		sessions = append(sessions, session)
+	}
+
+	c.JSON(http.StatusOK, sessions)
+}
+
+// GetDeploymentLogsBySession 根据会话名称获取部署日志
+func GetDeploymentLogsBySession(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
+		return
+	}
+
+	sessionName := c.Query("session_name")
+	if sessionName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Session name is required"})
+		return
+	}
+
+	rows, err := database.DB.Query(`
+		SELECT id, task_id, session_name, host, status, output, error, deployed_at
+		FROM deployment_logs WHERE task_id = ? AND session_name = ?
+		ORDER BY deployed_at DESC
+	`, id, sessionName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var logs []models.DeploymentLog
+	for rows.Next() {
+		var log models.DeploymentLog
+		err := rows.Scan(&log.ID, &log.TaskID, &log.SessionName, &log.Host,
+			&log.Status, &log.Output, &log.Error, &log.DeployedAt)
+		if err != nil {
+			continue
+		}
+		logs = append(logs, log)
+	}
+
+	c.JSON(http.StatusOK, logs)
+}
+func UpdateDeploymentTask(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
+		return
+	}
+
+	var task models.DeploymentTask
+	if err := c.ShouldBindJSON(&task); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 检查任务是否存在
+	var existingTask models.DeploymentTask
+	err = database.DB.QueryRow(`
+		SELECT id, name, github_url, branch, host_group_id, status, description, created_at
+		FROM deployment_tasks WHERE id = ?
+	`, id).Scan(&existingTask.ID, &existingTask.Name, &existingTask.GithubURL,
+		&existingTask.Branch, &existingTask.HostGroupID, &existingTask.Status,
+		&existingTask.Description, &existingTask.CreatedAt)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Task not found"})
+		return
+	}
+
+	// 检查任务状态，运行中的任务不能更新
+	if existingTask.Status == "running" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot update running task"})
+		return
+	}
+
+	// 设置默认值
+	if task.Branch == "" {
+		task.Branch = "main"
+	}
+	task.UpdatedAt = time.Now()
+
+	// 更新数据库
+	_, err = database.DB.Exec(`
+		UPDATE deployment_tasks 
+		SET name = ?, github_url = ?, branch = ?, host_group_id = ?, description = ?, updated_at = ?
+		WHERE id = ?
+	`, task.Name, task.GithubURL, task.Branch, task.HostGroupID, task.Description, task.UpdatedAt, id)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 返回更新后的任务
+	task.ID = id
+	task.Status = existingTask.Status // 保持原状态
+	task.CreatedAt = existingTask.CreatedAt
+
+	c.JSON(http.StatusOK, task)
+}

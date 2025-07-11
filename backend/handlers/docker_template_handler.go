@@ -91,7 +91,6 @@ func CreateDockerTemplate(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
 	template.ID = int(id)
 	c.JSON(http.StatusCreated, gin.H{"data": template})
 }

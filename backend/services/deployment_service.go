@@ -11,8 +11,21 @@ import (
 
 // DeployProject 部署项目到主机组
 func DeployProject(task *models.DeploymentTask) error {
+	// 生成会话名称，与shell管理保持一致的格式
+	sessionName := fmt.Sprintf("%s_%s", task.Name, time.Now().Format("2006-01-02_15:04:05"))
+
+	// 创建部署会话记录
+	_, err := database.DB.Exec(`
+		INSERT INTO deployment_sessions (task_id, session_name, created_at) 
+		VALUES (?, ?, ?)
+	`, task.ID, sessionName, time.Now())
+	if err != nil {
+		log.Printf("Failed to create deployment session: %v", err)
+		return err
+	}
+
 	// 更新任务状态为运行中
-	_, err := database.DB.Exec("UPDATE deployment_tasks SET status = 'running', updated_at = ? WHERE id = ?",
+	_, err = database.DB.Exec("UPDATE deployment_tasks SET status = 'running', updated_at = ? WHERE id = ?",
 		time.Now(), task.ID)
 	if err != nil {
 		return err
@@ -62,9 +75,9 @@ func DeployProject(task *models.DeploymentTask) error {
 
 		// 记录部署开始
 		_, err := database.DB.Exec(`
-			INSERT INTO deployment_logs (task_id, host, status, output, deployed_at) 
-			VALUES (?, ?, 'running', 'Starting deployment...', ?)
-		`, task.ID, host.IP, time.Now())
+			INSERT INTO deployment_logs (task_id, session_name, host, status, output, deployed_at) 
+			VALUES (?, ?, ?, 'running', 'Starting deployment...', ?)
+		`, task.ID, sessionName, host.IP, time.Now())
 		if err != nil {
 			log.Printf("Failed to insert deployment log: %v", err)
 		}
@@ -84,8 +97,8 @@ func DeployProject(task *models.DeploymentTask) error {
 		_, err = database.DB.Exec(`
 			UPDATE deployment_logs 
 			SET status = ?, output = ?, error = ?, deployed_at = ?
-			WHERE task_id = ? AND host = ? AND status = 'running'
-		`, status, output, errorMsg, time.Now(), task.ID, host.IP)
+			WHERE task_id = ? AND session_name = ? AND host = ? AND status = 'running'
+		`, status, output, errorMsg, time.Now(), task.ID, sessionName, host.IP)
 		if err != nil {
 			log.Printf("Failed to update deployment log: %v", err)
 		}

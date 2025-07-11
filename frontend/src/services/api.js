@@ -116,9 +116,11 @@ export const aiAPI = {
 export const deploymentAPI = {
   getAll: () => api.get('/deployment'),
   create: (data) => api.post('/deployment', data),
+  update: (id, data) => api.put(`/deployment/${id}`, data),
   execute: (id) => api.post(`/deployment/${id}/execute`),
   delete: (id) => api.delete(`/deployment/${id}`),
-  getLogs: (id) => api.get(`/deployment/${id}/logs`)
+  getSessions: (id) => api.get(`/deployment/${id}/sessions`),
+  getLogs: (id, sessionName) => api.get(`/deployment/${id}/logs?session_name=${encodeURIComponent(sessionName)}`)
 };
 
 // 证书管理API

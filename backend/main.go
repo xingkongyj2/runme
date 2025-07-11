@@ -94,8 +94,10 @@ func main() {
 			{
 				deployment.GET("", handlers.GetDeploymentTasks)
 				deployment.POST("", handlers.CreateDeploymentTask)
+				deployment.PUT("/:id", handlers.UpdateDeploymentTask)
 				deployment.POST("/:id/execute", handlers.ExecuteDeploymentTask)
-				deployment.GET("/:id/logs", handlers.GetDeploymentLogs)
+				deployment.GET("/:id/sessions", handlers.GetDeploymentSessions)
+				deployment.GET("/:id/logs", handlers.GetDeploymentLogsBySession)
 				deployment.DELETE("/:id", handlers.DeleteDeploymentTask)
 			}
 			// AI建议路由

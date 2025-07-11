@@ -112,13 +112,22 @@ type DeploymentTask struct {
 
 // DeploymentLog 部署日志模型
 type DeploymentLog struct {
-	ID         int       `json:"id" db:"id"`
-	TaskID     int       `json:"task_id" db:"task_id"`
-	Host       string    `json:"host" db:"host"`
-	Status     string    `json:"status" db:"status"` // success, failed, running
-	Output     string    `json:"output" db:"output"`
-	Error      string    `json:"error" db:"error"`
-	DeployedAt time.Time `json:"deployed_at" db:"deployed_at"`
+	ID          int       `json:"id" db:"id"`
+	TaskID      int       `json:"task_id" db:"task_id"`
+	SessionName string    `json:"session_name" db:"session_name"` // 添加会话名称
+	Host        string    `json:"host" db:"host"`
+	Status      string    `json:"status" db:"status"` // success, failed, running
+	Output      string    `json:"output" db:"output"`
+	Error       string    `json:"error" db:"error"`
+	DeployedAt  time.Time `json:"deployed_at" db:"deployed_at"`
+}
+
+// DeploymentSession 部署会话模型
+type DeploymentSession struct {
+	ID          int       `json:"id" db:"id"`
+	TaskID      int       `json:"task_id" db:"task_id"`
+	SessionName string    `json:"session_name" db:"session_name"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 }
 
 // User 用户模型
