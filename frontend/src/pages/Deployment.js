@@ -284,7 +284,7 @@ const Deployment = () => {
                   <th className="px-3 py-3 text-center text-xs font-medium text-foreground-secondary uppercase tracking-wider whitespace-nowrap w-20">
                     状态
                   </th>
-                  <th className="px-3 py-3 text-center text-xs font-medium text-foreground-secondary uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-3 text-center text-xs font-medium text-foreground-secondary tracking-wider whitespace-nowrap">
                     GitHub地址
                   </th>
                   <th className="px-3 py-3 text-center text-xs font-medium text-foreground-secondary uppercase tracking-wider whitespace-nowrap w-32">

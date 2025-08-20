@@ -95,16 +95,3 @@ func ExecuteAnsiblePlaybook(hosts []models.Host, playbookContent, variables stri
 
 	return string(output), nil
 }
-
-// ExecuteAnsiblePlaybookSingleHost 为单个主机执行Ansible Playbook（保持向后兼容）
-func ExecuteAnsiblePlaybookSingleHost(host, username, password string, port int, playbookContent, variables string) (string, error) {
-	hosts := []models.Host{
-		{
-			IP:       host,
-			Username: username,
-			Password: password,
-			Port:     port,
-		},
-	}
-	return ExecuteAnsiblePlaybook(hosts, playbookContent, variables)
-}

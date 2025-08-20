@@ -229,12 +229,7 @@ func createAllTables() {
 	CREATE TABLE IF NOT EXISTS docker_templates (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL,
-		description TEXT,
-		image TEXT NOT NULL,
-		ports TEXT,
-		volumes TEXT,
-		environment TEXT,
-		docker_compose TEXT,
+		docker_command TEXT NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);

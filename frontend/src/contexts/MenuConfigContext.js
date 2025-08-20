@@ -38,14 +38,14 @@ const defaultMenuConfig = {
       visible: true,
       required: true // 常驻菜单，不能隐藏
     },
-    {
-      id: 'ansible',
-      path: '/ansible',
-      name: 'Ansible管理',
-      icon: Workflow,
-      visible: true,
-      required: true // 常驻菜单，不能隐藏
-    },
+    // {
+    //   id: 'ansible',
+    //   path: '/ansible',
+    //   name: 'Ansible管理',
+    //   icon: Workflow,
+    //   visible: false,
+    //   required: false // 暂时隐藏
+    // },
     {
       id: 'docker-templates',
       path: '/docker-templates',
@@ -62,14 +62,14 @@ const defaultMenuConfig = {
       visible: true,
       required: false
     },
-    {
-      id: 'certificates',
-      path: '/certificates',
-      name: '证书管理',
-      icon: Shield,
-      visible: true,
-      required: false
-    }
+    // {
+    //   id: 'certificates',
+    //   path: '/certificates',
+    //   name: '证书管理',
+    //   icon: Shield,
+    //   visible: false,
+    //   required: false
+    // }
   ]
 };
 

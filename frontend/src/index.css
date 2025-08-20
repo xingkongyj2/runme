@@ -3,11 +3,48 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* 浅色模式配色 */
+    --background: 0 0% 100%;
+    --background-secondary: 210 40% 98%;
+    --background-tertiary: 210 40% 96%;
+    --foreground: 222.2 84% 4.9%;
+    --foreground-secondary: 215.4 16.3% 46.9%;
+    --foreground-muted: 215.4 16.3% 56.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-hover: 224.3 76.3% 48%;
+    --primary-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 210 40% 98%;
+    --card: 0 0% 100%;
+  }
+
+  .dark {
+    /* 深色模式配色 */
+    --background: 0 0% 0%;
+    --background-secondary: 240 3.7% 15.9%;
+    --background-tertiary: 240 5.9% 10%;
+    --foreground: 0 0% 98%;
+    --foreground-secondary: 215 20.2% 65.1%;
+    --foreground-muted: 217.9 10.6% 64.9%;
+    --primary: 0 0% 98%;
+    --primary-hover: 210 20% 95%;
+    --primary-foreground: 0 0% 9%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --card: 240 3.7% 15.9%;
+  }
+
   * {
     @apply border-border;
   }
+  
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-colors duration-200;
+  }
+  
+  html {
+    @apply transition-colors duration-200;
   }
 }
 

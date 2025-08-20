@@ -13,7 +13,8 @@ const Terminal = () => {
     const fetchHost = async () => {
       try {
         const response = await hostAPI.getById(hostId);
-        setHost(response.data);
+        console.log('Host data:', response); // 添加调试日志
+        setHost(response.data?.data || response.data); // 处理嵌套的data结构
       } catch (error) {
         console.error('Failed to fetch host:', error);
         setError('无法获取主机信息');

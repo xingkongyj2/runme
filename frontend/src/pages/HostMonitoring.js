@@ -120,8 +120,11 @@ const HostMonitoring = () => {
           </div>
           <div className="w-full bg-gray-700 rounded-full h-1.5">
             <div 
-              className="bg-gray-500 h-1.5 rounded-full transition-all duration-300" 
-              style={{ width: `${host.cpu_usage || 0}%` }}
+              className="bg-gray-500 h-1.5 transition-all duration-300" 
+              style={{ 
+                width: `${host.cpu_usage || 0}%`,
+                borderRadius: host.cpu_usage >= 15 ? '9999px' : `${Math.max(host.cpu_usage / 15, 0.1)}px 9999px 9999px ${Math.max(host.cpu_usage / 15, 0.1)}px`
+              }}
             ></div>
           </div>
           <span className="text-xs text-gray-400">{host.cpu_usage || 0}%</span>
@@ -133,8 +136,11 @@ const HostMonitoring = () => {
           </div>
           <div className="w-full bg-gray-700 rounded-full h-1.5">
             <div 
-              className="bg-green-500 h-1.5 rounded-full transition-all duration-300" 
-              style={{ width: `${host.memory_usage || 0}%` }}
+              className="bg-green-500 h-1.5 transition-all duration-300" 
+              style={{ 
+                width: `${host.memory_usage || 0}%`,
+                borderRadius: host.memory_usage >= 15 ? '9999px' : `${Math.max(host.memory_usage / 15, 0.1)}px 9999px 9999px ${Math.max(host.memory_usage / 15, 0.1)}px`
+              }}
             ></div>
           </div>
           <span className="text-xs text-gray-400">{host.memory_usage || 0}%</span>
@@ -150,8 +156,11 @@ const HostMonitoring = () => {
           </div>
           <div className="w-full bg-gray-700 rounded-full h-1.5">
             <div 
-              className="bg-yellow-500 h-1.5 rounded-full transition-all duration-300" 
-              style={{ width: `${host.disk_usage || 0}%` }}
+              className="bg-yellow-500 h-1.5 transition-all duration-300" 
+              style={{ 
+                width: `${host.disk_usage || 0}%`,
+                borderRadius: host.disk_usage >= 15 ? '9999px' : `${Math.max(host.disk_usage / 15, 0.1)}px 9999px 9999px ${Math.max(host.disk_usage / 15, 0.1)}px`
+              }}
             ></div>
           </div>
           <span className="text-xs text-gray-400">{host.disk_usage || 0}%</span>

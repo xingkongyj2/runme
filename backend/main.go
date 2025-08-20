@@ -29,6 +29,11 @@ func main() {
 			auth.POST("/login", handlers.Login)
 			auth.POST("/register", handlers.Register)
 		}
+		// 终端路由（不需要身份验证，因为WebSocket难以传递token）
+		terminal := api.Group("/terminal")
+		{
+			terminal.GET("/:hostId", handlers.HandleSSHTerminalByHostID)
+		}
 		// 认证路由
 		protected := api.Group("/")
 		protected.Use(middleware.AuthMiddleware())
@@ -53,11 +58,6 @@ func main() {
 				hostRoutes.DELETE("/:id", handlers.DeleteHost)
 				hostRoutes.GET("/:id/osinfo", handlers.GetHostOSInfo)
 			}
-			// 终端路由
-			terminal := protected.Group("/terminal")
-			{
-				terminal.GET("/:hostId", handlers.HandleSSHTerminalByHostID)
-			}
 			// Shell脚本路由
 			scriptRoutes := protected.Group("/scripts")
 			{
@@ -66,8 +66,6 @@ func main() {
 				scriptRoutes.PUT("/:id", handlers.UpdateScript)
 				scriptRoutes.DELETE("/:id", handlers.DeleteScript)
 				scriptRoutes.POST("/:id/execute", handlers.ExecuteScript)
-				scriptRoutes.POST("/:id/execute-experimental", handlers.ExecuteScriptExperimental)
-				scriptRoutes.POST("/:id/continue-execution", handlers.ContinueScriptExecution)
 				scriptRoutes.GET("/:id/sessions", handlers.GetExecutionSessions)
 				scriptRoutes.GET("/:id/logs", handlers.GetExecutionLogs)
 			}
@@ -79,8 +77,6 @@ func main() {
 				ansible.PUT("/:id", handlers.UpdateAnsiblePlaybook)
 				ansible.DELETE("/:id", handlers.DeleteAnsiblePlaybook)
 				ansible.POST("/:id/execute", handlers.ExecuteAnsiblePlaybook)
-				ansible.POST("/:id/execute-experimental", handlers.ExecuteAnsiblePlaybookExperimental)
-				ansible.POST("/:id/continue-execution", handlers.ContinueAnsibleExecution)
 				ansible.GET("/:id/sessions", handlers.GetAnsibleExecutionSessions)
 				ansible.GET("/:id/logs", handlers.GetAnsibleExecutionLogs)
 			}
@@ -125,6 +121,7 @@ func main() {
 				dockerTemplates.POST("", handlers.CreateDockerTemplate)
 				dockerTemplates.PUT("/:id", handlers.UpdateDockerTemplate)
 				dockerTemplates.DELETE("/:id", handlers.DeleteDockerTemplate)
+				dockerTemplates.POST("/:id/execute", handlers.ExecuteDockerTemplate)
 			}
 		}
 	}

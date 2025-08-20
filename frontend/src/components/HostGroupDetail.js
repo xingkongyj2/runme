@@ -385,9 +385,23 @@ const HostGroupDetail = ({ group, onClose }) => {
                         <td className="w-16 py-4 text-foreground text-sm text-center">{index + 1}</td>
                         <td className="w-32 py-4 text-foreground font-mono text-sm text-center">{host.ip}</td>
                         <td className="w-24 py-4 text-center">
-                          <span className="text-sm text-foreground font-medium">
+                          <button
+                            className="text-sm text-foreground font-medium hover:text-blue-600 transition-colors cursor-pointer"
+                            onClick={async () => {
+                              try {
+                                const response = await hostAPI.getOSInfo(host.id);
+                                const updatedHosts = hosts.map(h => 
+                                  h.id === host.id ? {...h, os_info: response.data.os_info} : h
+                                );
+                                setHosts(updatedHosts);
+                              } catch (error) {
+                                console.error('Failed to refresh OS info:', error);
+                              }
+                            }}
+                            title="点击刷新操作系统信息"
+                          >
                             {getOSShortName(host.os_info)}
-                          </span>
+                          </button>
                         </td>
                         <td className="w-20 py-4 text-center">
                           {showingResults && pingResults[host.ip] ? (

@@ -188,12 +188,7 @@ type CertificateLog struct {
 type DockerTemplate struct {
 	ID            int       `json:"id" db:"id"`
 	Name          string    `json:"name" db:"name"`
-	Description   string    `json:"description" db:"description"`
-	Image         string    `json:"image" db:"image"`
-	Ports         string    `json:"ports" db:"ports"`                   // JSON字符串存储端口映射数组
-	Volumes       string    `json:"volumes" db:"volumes"`               // JSON字符串存储数据卷数组
-	Environment   string    `json:"environment" db:"environment"`       // JSON字符串存储环境变量数组
-	DockerCompose string    `json:"docker_compose" db:"docker_compose"` // Docker Compose文件内容
+	DockerCommand string    `json:"docker_command" db:"docker_command"` // Docker命令
 	CreatedAt     time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
 }

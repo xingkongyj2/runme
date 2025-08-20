@@ -3,7 +3,6 @@ import { Plus, Edit2, Trash2, PlayCircle, Workflow, ScrollText, AlertTriangle, S
 import { ansibleAPI, hostGroupAPI } from '../services/api';
 import Modal from '../components/Modal';
 import LogModal from '../components/LogModal';
-import ExperimentalModal from '../components/ExperimentalModal';
 import AISuggestionModal from '../components/AISuggestionModal';
 import CustomSelect from '../components/CustomSelect';
 import ToastContainer from '../components/ToastContainer';
@@ -18,12 +17,9 @@ const Ansible = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showLogModal, setShowLogModal] = useState(false);
-  const [showExperimentalModal, setShowExperimentalModal] = useState(false);
   const [showAISuggestionModal, setShowAISuggestionModal] = useState(false);
-  const [experimentalResult, setExperimentalResult] = useState(null);
   const [editingPlaybook, setEditingPlaybook] = useState(null);
   const [selectedPlaybook, setSelectedPlaybook] = useState(null);
-  const [experimentalMode, setExperimentalMode] = useState(false);
   // 添加运行状态管理
   const [runningPlaybooks, setRunningPlaybooks] = useState(new Set());
   const [formData, setFormData] = useState({
@@ -130,72 +126,41 @@ const Ansible = () => {
   };
 
   const handleExecute = async (playbook) => {
-    if (experimentalMode) {
-      setConfirmConfig({
-        title: '实验模式执行确认',
-        message: `确定要在实验主机模式下执行Ansible Playbook "${playbook.name}" 吗？\n\n系统将随机选择一台主机进行测试，确认无问题后再继续执行剩余主机。`,
-        onConfirm: async () => {
-          // 添加到运行状态
+    setConfirmConfig({
+      title: '执行确认',
+      message: `确定要执行Ansible Playbook "${playbook.name}" 吗？`,
+      onConfirm: async () => {
+        // 1. 立即关闭确认弹窗
+        setShowConfirmModal(false);
+        
+        // 2. 立即显示Toast（使用setTimeout确保在下一个事件循环中执行）
+        setTimeout(() => {
+          showSuccess(`Ansible Playbook执行已启动：${playbook.name}，请查看日志了解执行结果`, '执行成功');
+        }, 0);
+        
+        // 3. Toast显示后再设置按钮加载状态
+        setTimeout(() => {
           setRunningPlaybooks(prev => new Set([...prev, playbook.id]));
-          try {
-            const response = await ansibleAPI.executeExperimental(playbook.id);
-            setExperimentalResult(response.data);
-            setShowExperimentalModal(true);
-            setShowConfirmModal(false);
-            showSuccess(`实验模式执行已启动：${playbook.name}`, '执行成功');
-          } catch (error) {
-            console.error('Failed to execute playbook in experimental mode:', error);
-            showError('实验模式执行失败');
-            setShowConfirmModal(false);
-          } finally {
-            // 3秒后移除运行状态
-            setTimeout(() => {
-              setRunningPlaybooks(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(playbook.id);
-                return newSet;
-              });
-            }, 3000);
-          }
-        }
-      });
-    } else {
-      setConfirmConfig({
-        title: '执行确认',
-        message: `确定要执行Ansible Playbook "${playbook.name}" 吗？`,
-        onConfirm: async () => {
-          // 1. 立即关闭确认弹窗
-          setShowConfirmModal(false);
-          
-          // 2. 立即显示Toast（使用setTimeout确保在下一个事件循环中执行）
+        }, 50);
+        
+        try {
+          // 4. 调用API
+          await ansibleAPI.execute(playbook.id);
+        } catch (error) {
+          console.error('Failed to execute playbook:', error);
+          showError('执行失败');
+        } finally {
+          // 3秒后移除运行状态
           setTimeout(() => {
-            showSuccess(`Ansible Playbook执行已启动：${playbook.name}，请查看日志了解执行结果`, '执行成功');
-          }, 0);
-          
-          // 3. Toast显示后再设置按钮加载状态
-          setTimeout(() => {
-            setRunningPlaybooks(prev => new Set([...prev, playbook.id]));
-          }, 50);
-          
-          try {
-            // 4. 调用API
-            await ansibleAPI.execute(playbook.id);
-          } catch (error) {
-            console.error('Failed to execute playbook:', error);
-            showError('执行失败');
-          } finally {
-            // 3秒后移除运行状态
-            setTimeout(() => {
-              setRunningPlaybooks(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(playbook.id);
-                return newSet;
-              });
-            }, 3000);
-          }
+            setRunningPlaybooks(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(playbook.id);
+              return newSet;
+            });
+          }, 3000);
         }
-      });
-    }
+      }
+    });
     setShowConfirmModal(true);
   };
 
@@ -210,20 +175,6 @@ const Ansible = () => {
     return group ? group.name : '未知主机组';
   };
 
-  const handleContinueExecution = async () => {
-    try {
-      await ansibleAPI.continueExecution(experimentalResult.experimental_result.playbook_id || selectedPlaybook?.id, {
-        session_name: experimentalResult.session_name,
-        remaining_hosts: experimentalResult.remaining_hosts
-      });
-      setShowExperimentalModal(false);
-      setExperimentalResult(null);
-      showError('剩余主机执行已启动，请查看日志了解执行结果');
-    } catch (error) {
-      console.error('Failed to continue execution:', error);
-      showError('继续执行失败');
-    }
-  };
 
   // 移动到组件内部
   const handleAISuggestion = (suggestion) => {
@@ -245,24 +196,9 @@ const Ansible = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3">
-            <Workflow size={24} className="text-primary" />
-            <h1 className="text-2xl font-bold text-foreground">Ansible管理</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={experimentalMode}
-                onChange={(e) => setExperimentalMode(e.target.checked)}
-                className="custom-checkbox"
-              />
-              <span className="text-sm text-foreground flex items-center gap-1">
-                实验主机模式
-              </span>
-            </label>
-          </div>
+        <div className="flex items-center gap-3">
+          <Workflow size={24} className="text-primary" />
+          <h1 className="text-2xl font-bold text-foreground">Ansible管理</h1>
         </div>
         <button 
           className="btn-primary flex items-center gap-2"
@@ -277,16 +213,6 @@ const Ansible = () => {
         </button>
       </div>
 
-      {experimentalMode && (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 dark:bg-orange-900/20 dark:border-orange-800">
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={16} className="text-orange-500" />
-            <span className="text-sm text-orange-700 dark:text-orange-300">
-              实验主机模式已启用：执行Playbook时将先在随机选择的主机上测试，确认无问题后再继续执行剩余主机。
-            </span>
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {playbooks.map((playbook) => {
@@ -303,18 +229,14 @@ const Ansible = () => {
                     className={`group relative p-2.5 rounded-xl transition-all duration-200 ${
                       isRunning
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800/50 dark:text-gray-500'
-                        : experimentalMode 
-                          ? 'bg-orange-100 text-orange-700 hover:bg-orange-200 hover:shadow-md dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30'
-                          : 'bg-green-100 text-green-700 hover:bg-green-200 hover:shadow-md dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30'
+                        : 'bg-green-100 text-green-700 hover:bg-green-200 hover:shadow-md dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30'
                     }`}
                     onClick={() => !isRunning && handleExecute(playbook)}
                     disabled={isRunning}
-                    title={isRunning ? "Playbook执行中..." : (experimentalMode ? "实验模式执行Playbook" : "执行Playbook")}
+                    title={isRunning ? "Playbook执行中..." : "执行Playbook"}
                   >
                     {isRunning ? (
                       <Loader2 size={16} className="animate-spin" />
-                    ) : experimentalMode ? (
-                      <AlertTriangle size={16} />
                     ) : (
                       <PlayCircle size={16} />
                     )}
@@ -431,17 +353,6 @@ const Ansible = () => {
         type="ansible"
       />
 
-      {/* 实验主机模式结果模态框 */}
-      <ExperimentalModal 
-        show={showExperimentalModal}
-        onClose={() => {
-          setShowExperimentalModal(false);
-          setExperimentalResult(null);
-        }}
-        onContinue={handleContinueExecution}
-        experimentalResult={experimentalResult}
-        type="ansible"
-      />
       
       {/* AI建议模态框 - 添加缺少的组件渲染 */}
       <AISuggestionModal 

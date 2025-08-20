@@ -80,8 +80,6 @@ export const scriptAPI = {
   update: (id, data) => api.put(`/scripts/${id}`, data),
   delete: (id) => api.delete(`/scripts/${id}`),
   execute: (id) => api.post(`/scripts/${id}/execute`),
-  executeExperimental: (id) => api.post(`/scripts/${id}/execute-experimental`),
-  continueExecution: (id, data) => api.post(`/scripts/${id}/continue-execution`, data),
   getSessions: (id) => api.get(`/scripts/${id}/sessions`),
   getLogs: (id, sessionName) => api.get(`/scripts/${id}/logs?session_name=${encodeURIComponent(sessionName)}`)
 };
@@ -92,8 +90,6 @@ export const ansibleAPI = {
   update: (id, data) => api.put(`/ansible/${id}`, data),
   delete: (id) => api.delete(`/ansible/${id}`),
   execute: (id) => api.post(`/ansible/${id}/execute`),
-  executeExperimental: (id) => api.post(`/ansible/${id}/execute-experimental`),
-  continueExecution: (id, data) => api.post(`/ansible/${id}/continue-execution`, data),
   getSessions: (id) => api.get(`/ansible/${id}/sessions`),
   getLogs: (id, sessionName) => api.get(`/ansible/${id}/logs?session_name=${encodeURIComponent(sessionName)}`)
 };
@@ -142,7 +138,8 @@ export const dockerTemplateAPI = {
   getById: (id) => api.get(`/docker-templates/${id}`),
   create: (data) => api.post('/docker-templates', data),
   update: (id, data) => api.put(`/docker-templates/${id}`, data),
-  delete: (id) => api.delete(`/docker-templates/${id}`)
+  delete: (id) => api.delete(`/docker-templates/${id}`),
+  execute: (id, data) => api.post(`/docker-templates/${id}/execute`, data)
 };
 
 export default api;

@@ -98,14 +98,11 @@ func HandleSSHTerminalByHostID(c *gin.Context) {
 
 	// 获取主机信息
 	var host models.Host
-	var username, password string
-	var port int
 	err = database.DB.QueryRow(`
-		SELECT h.id, h.ip, h.host_group_id, hg.username, hg.password, hg.port 
-		FROM hosts h 
-		JOIN host_groups hg ON h.host_group_id = hg.id 
-		WHERE h.id = ?
-	`, hostID).Scan(&host.ID, &host.IP, &host.HostGroupID, &username, &password, &port)
+		SELECT id, ip, port, username, password, host_group_id 
+		FROM hosts 
+		WHERE id = ?
+	`, hostID).Scan(&host.ID, &host.IP, &host.Port, &host.Username, &host.Password, &host.HostGroupID)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -126,15 +123,15 @@ func HandleSSHTerminalByHostID(c *gin.Context) {
 
 	// 创建SSH连接
 	terminal := &SSHTerminal{conn: ws}
-	err = terminal.connectSSH(host.IP, username, password, port)
+	err = terminal.connectSSH(host.IP, host.Username, host.Password, host.Port)
 	if err != nil {
 		terminal.sendMessage("error", fmt.Sprintf("SSH连接失败: %v", err))
 		return
 	}
 	defer terminal.close()
 
-	// 发送连接成功消息
-	terminal.sendMessage("connected", fmt.Sprintf("已连接到主机 %s (ID: %d)", host.IP, host.ID))
+	// 发送连接成功信号（不显示额外消息，让SSH原始输出正常显示）
+	terminal.sendMessage("connected", "")
 
 	// 启动数据传输
 	terminal.handleTerminal()
@@ -173,8 +170,8 @@ func (t *SSHTerminal) connectSSH(host, username, password string, port int) erro
 		ssh.TTY_OP_OSPEED: 14400,
 	}
 
-	// 请求伪终端
-	err = session.RequestPty("xterm-256color", 80, 24, modes)
+	// 请求伪终端 - 使用前端设置的尺寸
+	err = session.RequestPty("xterm-256color", 120, 30, modes)
 	if err != nil {
 		return err
 	}
@@ -204,7 +201,7 @@ func (t *SSHTerminal) connectSSH(host, username, password string, port int) erro
 func (t *SSHTerminal) handleTerminal() {
 	// 启动goroutine读取SSH输出并发送到WebSocket
 	go func() {
-		buf := make([]byte, 1024)
+		buf := make([]byte, 4096) // 增大缓冲区
 		for {
 			n, err := t.stdout.Read(buf)
 			if err != nil {
@@ -214,6 +211,7 @@ func (t *SSHTerminal) handleTerminal() {
 				return
 			}
 			if n > 0 {
+				// 直接发送原始数据，不做任何处理
 				t.sendMessage("data", string(buf[:n]))
 			}
 		}

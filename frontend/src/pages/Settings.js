@@ -39,7 +39,6 @@ const Settings = () => {
         {/* 页面标题 */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">系统设置</h1>
-          <p className="text-gray-400">管理系统界面和功能配置</p>
         </div>
 
         {/* 标签页 */}
@@ -82,17 +81,6 @@ const Settings = () => {
                 重置默认
               </button>
             </div>
-
-            {/* 说明文字 */}
-            <div className="bg-card p-4 rounded-lg border border-border">
-              <p className="text-gray-300 text-sm">
-                • 拖拽菜单项可以调整显示顺序
-                • 点击眼睛图标可以显示/隐藏菜单项
-                • 主机管理、Ansible管理、Shell管理为常驻菜单，不能隐藏
-                • 设置会实时保存并应用到左侧菜单
-              </p>
-            </div>
-
             {/* 拖拽菜单列表 */}
             <div className="bg-card rounded-lg p-6 border border-border">
               <DragDropContext onDragEnd={handleDragEnd}>

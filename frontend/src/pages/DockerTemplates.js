@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Package, Eye, Edit, Trash2, Play, Copy, Download } from 'lucide-react';
-import { dockerTemplateAPI } from '../services/api';
+import { Plus, Search, Package, Eye, Edit, Trash2, Play, Copy } from 'lucide-react';
+import { dockerTemplateAPI, hostGroupAPI, hostAPI } from '../services/api';
 import Modal from '../components/Modal';
+import ToastContainer from '../components/ToastContainer';
+import CustomSelect from '../components/CustomSelect';
+import useToast from '../hooks/useToast';
 
 const DockerTemplates = () => {
   const [templates, setTemplates] = useState([]);
@@ -13,15 +16,20 @@ const DockerTemplates = () => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletingTemplate, setDeletingTemplate] = useState(null);
+  const [showExecuteModal, setShowExecuteModal] = useState(false);
+  const [executingTemplate, setExecutingTemplate] = useState(null);
+  const [hostGroups, setHostGroups] = useState([]);
+  const [hosts, setHosts] = useState([]);
+  const [selectedHostGroup, setSelectedHostGroup] = useState('');
+  const [selectedHost, setSelectedHost] = useState('');
+  const [executionResult, setExecutionResult] = useState('');
+  const [executing, setExecuting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    description: '',
-    image: '',
-    ports: '',
-    volumes: '',
-    environment: '',
-    docker_compose: ''
+    docker_command: ''
   });
+
+  const { toasts, showSuccess, showError, hideToast } = useToast();
 
   useEffect(() => {
     fetchTemplates();
@@ -46,12 +54,7 @@ const DockerTemplates = () => {
     try {
       const submitData = {
         name: formData.name,
-        description: formData.description,
-        image: formData.image,
-        ports: formData.ports,
-        volumes: formData.volumes,
-        environment: formData.environment,
-        docker_compose: formData.docker_compose
+        docker_command: formData.docker_command
       };
       
       if (editingTemplate) {
@@ -63,17 +66,12 @@ const DockerTemplates = () => {
       setEditingTemplate(null);
       setFormData({
         name: '',
-        description: '',
-        image: '',
-        ports: '',
-        volumes: '',
-        environment: '',
-        docker_compose: ''
+        docker_command: ''
       });
       fetchTemplates();
     } catch (error) {
       console.error('Failed to save docker template:', error);
-      alert('保存失败，请检查输入信息');
+      showError('保存失败，请检查输入信息');
     }
   };
 
@@ -81,12 +79,7 @@ const DockerTemplates = () => {
     setEditingTemplate(template);
     setFormData({
       name: template.name || '',
-      description: template.description || '',
-      image: template.image || '',
-      ports: template.ports || '',
-      volumes: template.volumes || '',
-      environment: template.environment || '',
-      docker_compose: template.docker_compose || ''
+      docker_command: template.docker_command || ''
     });
     setShowModal(true);
   };
@@ -100,7 +93,7 @@ const DockerTemplates = () => {
         setDeletingTemplate(null);
       } catch (error) {
         console.error('Failed to delete docker template:', error);
-        alert('删除失败');
+        showError('删除失败');
       }
     }
   };
@@ -115,25 +108,80 @@ const DockerTemplates = () => {
     setShowDetailModal(true);
   };
 
-  const handleCopyCompose = (compose) => {
-    navigator.clipboard.writeText(compose);
-    alert('Docker Compose内容已复制到剪贴板');
+  const handleExecute = async (template) => {
+    setExecutingTemplate(template);
+    setShowExecuteModal(true);
+    setSelectedHostGroup('');
+    setSelectedHost('');
+    setExecutionResult('');
+    
+    try {
+      const response = await hostGroupAPI.getAll();
+      setHostGroups(response.data?.data || []);
+    } catch (error) {
+      console.error('Failed to fetch host groups:', error);
+      setHostGroups([]);
+    }
   };
 
-  const handleDownloadCompose = (template) => {
-    const element = document.createElement('a');
-    const file = new Blob([template.docker_compose], { type: 'text/plain' });
-    element.href = URL.createObjectURL(file);
-    element.download = `docker-compose-${template.name.toLowerCase()}.yml`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
+  const handleHostGroupChange = async (groupId) => {
+    setSelectedHostGroup(groupId);
+    setSelectedHost('');
+    
+    if (groupId) {
+      try {
+        const response = await hostAPI.getByGroupId(groupId);
+        setHosts(response.data?.data || []);
+      } catch (error) {
+        console.error('Failed to fetch hosts:', error);
+        setHosts([]);
+      }
+    } else {
+      setHosts([]);
+    }
   };
+
+  const handleExecuteTemplate = async () => {
+    if (!selectedHostGroup && !selectedHost) {
+      showError('请选择主机组或主机');
+      return;
+    }
+
+    setExecuting(true);
+    setExecutionResult('执行中，请稍后...');
+
+    try {
+      let targetHost = selectedHost;
+      
+      // 如果没有选择具体主机，但选择了主机组，则使用主机组的第一台主机
+      if (!targetHost && selectedHostGroup && hosts.length > 0) {
+        targetHost = hosts[0].id;
+      }
+      
+      if (!targetHost) {
+        showError('未找到可执行的主机');
+        setExecuting(false);
+        return;
+      }
+
+      const response = await dockerTemplateAPI.execute(executingTemplate.id, {
+        host_id: parseInt(targetHost),
+        docker_command: executingTemplate.docker_command
+      });
+
+      setExecutionResult(response.data?.result || '执行完成');
+    } catch (error) {
+      console.error('Failed to execute template:', error);
+      setExecutionResult(`执行失败: ${error.response?.data?.error || error.message}`);
+    } finally {
+      setExecuting(false);
+    }
+  };
+
 
   const filteredTemplates = Array.isArray(templates) ? templates.filter(template => 
-    template.name && template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    template.description && template.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    template.image && template.image.toLowerCase().includes(searchTerm.toLowerCase())
+    (template.name && template.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (template.docker_command && template.docker_command.toLowerCase().includes(searchTerm.toLowerCase()))
   ) : [];
 
   if (loading) {
@@ -166,7 +214,7 @@ const DockerTemplates = () => {
         <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-foreground-secondary" />
         <input
           type="text"
-          placeholder="搜索模板名称、描述或镜像"
+          placeholder="搜索模板名称或Docker命令"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full pl-10 pr-4 py-2 border border-gray-600 rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
@@ -179,22 +227,25 @@ const DockerTemplates = () => {
           <div key={template.id} className="bg-card border border-border rounded-xl p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-foreground mb-2">{template.name}</h3>
-                <p className="text-sm text-foreground-secondary mb-2">{template.description}</p>
-                <div className="text-xs text-foreground-secondary">
-                  <span className="font-medium">镜像:</span> {template.image}
-                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-3">{template.name}</h3>
               </div>
             </div>
             
             {/* 操作按钮 */}
             <div className="flex gap-2 mt-4">
               <button
-                onClick={() => handleViewDetails(template)}
+                onClick={() => handleExecute(template)}
                 className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm"
               >
+                <Play className="w-4 h-4" />
+                执行
+              </button>
+              <button
+                onClick={() => handleViewDetails(template)}
+                className="px-3 py-2 bg-background-secondary text-foreground border border-border rounded-lg hover:bg-background-secondary/80 transition-colors"
+                title="查看详情"
+              >
                 <Eye className="w-4 h-4" />
-                查看详情
               </button>
               <button
                 onClick={() => handleEdit(template)}
@@ -229,93 +280,37 @@ const DockerTemplates = () => {
           setEditingTemplate(null);
           setFormData({
             name: '',
-            description: '',
-            image: '',
-            ports: '',
-            volumes: '',
-            environment: '',
-            docker_compose: ''
+            docker_command: ''
           });
         }}
         title={editingTemplate ? '编辑模板' : '新建模板'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">模板名称</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Docker镜像</label>
-              <input
-                type="text"
-                value={formData.image}
-                onChange={(e) => setFormData({...formData, image: e.target.value})}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                placeholder="如: nginx:latest"
-                required
-              />
-            </div>
-          </div>
-          
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">描述</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
+            <label className="block text-sm font-medium text-foreground mb-2">模板名称</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
               className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-              rows={2}
+              placeholder=""
+              required
             />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">端口映射</label>
-              <textarea
-                value={formData.ports}
-                onChange={(e) => setFormData({...formData, ports: e.target.value})}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                placeholder='["80:80", "443:443"]'
-                rows={3}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">数据卷</label>
-              <textarea
-                value={formData.volumes}
-                onChange={(e) => setFormData({...formData, volumes: e.target.value})}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                placeholder='["./data:/data"]'
-                rows={3}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">环境变量</label>
-              <textarea
-                value={formData.environment}
-                onChange={(e) => setFormData({...formData, environment: e.target.value})}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                placeholder='["ENV=production"]'
-                rows={3}
-              />
-            </div>
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Docker Compose</label>
+            <label className="block text-sm font-medium text-foreground mb-2">Docker命令</label>
             <textarea
-              value={formData.docker_compose}
-              onChange={(e) => setFormData({...formData, docker_compose: e.target.value})}
+              value={formData.docker_command}
+              onChange={(e) => setFormData({...formData, docker_command: e.target.value})}
               className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary font-mono text-sm"
-              placeholder="version: '3.8'\nservices:\n  app:\n    image: nginx:latest"
-              rows={8}
+              placeholder=""
+              rows={10}
+              required
             />
+            <p className="text-xs text-foreground-secondary mt-1">
+              请输入完整的Docker命令，如：docker run、docker pull等
+            </p>
           </div>
           
           <div className="flex justify-end gap-3 pt-4">
@@ -326,12 +321,7 @@ const DockerTemplates = () => {
                 setEditingTemplate(null);
                 setFormData({
                   name: '',
-                  description: '',
-                  image: '',
-                  ports: '',
-                  volumes: '',
-                  environment: '',
-                  docker_compose: ''
+                  docker_command: ''
                 });
               }}
               className="px-4 py-2 bg-background-secondary text-foreground border border-border rounded-lg hover:bg-background-secondary/80 transition-colors"
@@ -392,81 +382,110 @@ const DockerTemplates = () => {
         title={selectedTemplate?.name || ''}
       >
         {selectedTemplate && (
-          <div className="space-y-6">
-            <div>
-              <h4 className="font-medium text-foreground mb-2">描述</h4>
-              <p className="text-foreground-secondary">{selectedTemplate.description}</p>
-            </div>
+          <div className="-mt-6">
+            <pre className="bg-black text-white p-4 rounded-lg text-sm overflow-x-auto font-mono border border-gray-600">
+              <code>{selectedTemplate.docker_command}</code>
+            </pre>
             
-            <div>
-              <h4 className="font-medium text-foreground mb-2">镜像</h4>
-              <code className="bg-background-secondary px-2 py-1 rounded text-sm">{selectedTemplate.image}</code>
-            </div>
-            
-            {selectedTemplate.ports && (
-              <div>
-                <h4 className="font-medium text-foreground mb-2">端口映射</h4>
-                <pre className="bg-background-secondary p-2 rounded text-sm overflow-x-auto">
-                  <code>{selectedTemplate.ports}</code>
-                </pre>
-              </div>
-            )}
-            
-            {selectedTemplate.volumes && (
-              <div>
-                <h4 className="font-medium text-foreground mb-2">数据卷</h4>
-                <pre className="bg-background-secondary p-2 rounded text-sm overflow-x-auto">
-                  <code>{selectedTemplate.volumes}</code>
-                </pre>
-              </div>
-            )}
-            
-            {selectedTemplate.environment && (
-              <div>
-                <h4 className="font-medium text-foreground mb-2">环境变量</h4>
-                <pre className="bg-background-secondary p-2 rounded text-sm overflow-x-auto">
-                  <code>{selectedTemplate.environment}</code>
-                </pre>
-              </div>
-            )}
-            
-            {selectedTemplate.docker_compose && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-foreground">Docker Compose</h4>
-                  <button
-                    onClick={() => handleCopyCompose(selectedTemplate.docker_compose)}
-                    className="flex items-center gap-1 px-2 py-1 text-xs bg-background-secondary text-foreground border border-border rounded hover:bg-background-secondary/80 transition-colors"
-                  >
-                    <Copy className="w-3 h-3" />
-                    复制
-                  </button>
-                </div>
-                <pre className="bg-background-secondary p-4 rounded-lg text-sm overflow-x-auto">
-                  <code>{selectedTemplate.docker_compose}</code>
-                </pre>
-              </div>
-            )}
-            
-            <div className="flex gap-3 pt-4">
+            <div className="flex justify-end mt-3">
               <button
-                onClick={() => handleDownloadCompose(selectedTemplate)}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                下载Compose文件
-              </button>
-              <button
-                onClick={() => handleCopyCompose(selectedTemplate.docker_compose)}
+                onClick={() => {
+                  navigator.clipboard.writeText(selectedTemplate.docker_command);
+                  showSuccess('Docker命令已复制到剪贴板');
+                }}
                 className="flex items-center gap-2 px-4 py-2 bg-background-secondary text-foreground border border-border rounded-lg hover:bg-background-secondary/80 transition-colors"
               >
                 <Copy className="w-4 h-4" />
-                复制到剪贴板
+                复制命令
               </button>
             </div>
           </div>
         )}
       </Modal>
+
+      {/* 执行模板弹窗 */}
+      <Modal
+        isOpen={showExecuteModal}
+        onClose={() => {
+          setShowExecuteModal(false);
+          setExecutingTemplate(null);
+          setSelectedHostGroup('');
+          setSelectedHost('');
+          setExecutionResult('');
+        }}
+        title={`执行模板: ${executingTemplate?.name || ''}`}
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">选择主机组</label>
+            <CustomSelect
+              value={selectedHostGroup}
+              onChange={(value) => handleHostGroupChange(value)}
+              options={hostGroups.map(group => ({ value: group.id, label: group.name }))}
+              placeholder="请选择主机组"
+            />
+          </div>
+
+          {hosts.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">选择主机</label>
+              <CustomSelect
+                value={selectedHost}
+                onChange={(value) => setSelectedHost(value)}
+                options={[
+                  { value: '', label: '所有主机' },
+                  ...hosts.map(host => ({ value: host.id, label: `${host.ip}:${host.port}` }))
+                ]}
+                placeholder="选择主机"
+              />
+            </div>
+          )}
+
+          {executionResult && (
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">执行结果</label>
+              <pre className="bg-background-secondary p-4 rounded-lg text-sm overflow-x-auto font-mono max-h-64 overflow-y-auto">
+                <code>{executionResult}</code>
+              </pre>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              onClick={() => {
+                setShowExecuteModal(false);
+                setExecutingTemplate(null);
+                setSelectedHostGroup('');
+                setSelectedHost('');
+                setExecutionResult('');
+              }}
+              className="px-4 py-2 bg-background-secondary text-foreground border border-border rounded-lg hover:bg-background-secondary/80 transition-colors"
+            >
+              取消
+            </button>
+            <button
+              onClick={handleExecuteTemplate}
+              disabled={executing || (!selectedHostGroup && !selectedHost)}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {executing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  执行中...
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4" />
+                  执行
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Toast容器 */}
+      <ToastContainer toasts={toasts} onClose={hideToast} />
     </div>
   );
 };

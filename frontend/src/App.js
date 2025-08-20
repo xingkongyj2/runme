@@ -38,7 +38,7 @@ function App() {
                     <Route path="/docker-templates" element={<DockerTemplates />} />
                     <Route path="/monitoring" element={<HostMonitoring />} />
                     <Route path="/deployment" element={<Deployment />} />
-                    <Route path="/certificates" element={<CertificateManagement />} />
+                    {/* <Route path="/certificates" element={<CertificateManagement />} /> */}
                     <Route path="/settings" element={<Settings />} />
                   </Routes>
                 </Layout>
