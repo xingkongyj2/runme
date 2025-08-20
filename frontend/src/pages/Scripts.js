@@ -316,7 +316,7 @@ const Scripts = () => {
               rows="10"
               value={formData.content}
               onChange={(e) => setFormData({...formData, content: e.target.value})}
-              placeholder="请输入要执行的脚本内容..."
+              placeholder=""
               required
             />
           </div>
