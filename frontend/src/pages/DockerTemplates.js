@@ -222,8 +222,19 @@ const DockerTemplates = () => {
       </div>
 
       {/* 模板列表 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTemplates.map((template) => (
+      {templates.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Package size={48} className="text-foreground-secondary mb-4" />
+          <p className="text-foreground-secondary">暂无Docker模板</p>
+        </div>
+      ) : filteredTemplates.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Search size={48} className="text-foreground-secondary mb-4" />
+          <p className="text-foreground-secondary">没有找到匹配的模板</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTemplates.map((template) => (
           <div key={template.id} className="bg-card border border-border rounded-xl p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
@@ -264,13 +275,9 @@ const DockerTemplates = () => {
             </div>
           </div>
         ))}
-      </div>
-
-      {filteredTemplates.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-foreground-secondary">没有找到匹配的模板</p>
         </div>
       )}
+
 
       {/* 创建/编辑模板弹窗 */}
       <Modal

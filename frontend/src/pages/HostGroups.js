@@ -164,13 +164,13 @@ const HostGroups = () => {
       </div>
 
       {/* 主机组列表卡片 */}
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
-        {filteredGroups.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Server size={48} className="text-foreground-secondary mb-4" />
-            <p className="text-foreground-secondary">暂无主机组，点击上方按钮创建第一个主机组</p>
-          </div>
-        ) : (
+      {filteredGroups.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Server size={48} className="text-foreground-secondary mb-4" />
+          <p className="text-foreground-secondary">暂无主机组</p>
+        </div>
+      ) : (
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-background-secondary">
@@ -229,8 +229,8 @@ const HostGroups = () => {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* 编辑主机组弹窗 */}
       <Modal 

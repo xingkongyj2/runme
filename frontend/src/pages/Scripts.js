@@ -213,8 +213,14 @@ const Scripts = () => {
       </div>
 
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 gap-y-6 justify-items-center">
-        {scripts.map((script) => {
+      {scripts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <FileText size={48} className="text-foreground-secondary mb-4" />
+          <p className="text-foreground-secondary">暂无Shell脚本</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-3 gap-y-6 justify-items-center">
+          {scripts.map((script) => {
           const isRunning = runningScripts.has(script.id);
           return (
             <div key={script.id} className="bg-card rounded-xl border border-border p-6 hover:shadow-lg transition-shadow w-full">
@@ -269,7 +275,8 @@ const Scripts = () => {
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
 
       <Modal 
         isOpen={showModal} 

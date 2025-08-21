@@ -326,7 +326,12 @@ const HostMonitoring = () => {
         {/* 内容区域 */}
         <div className="space-y-4">
           {/* 根据优化后的逻辑显示内容 */}
-          {shouldShowLoading ? (
+          {hostGroups.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <Monitor size={48} className="text-foreground-secondary mb-4" />
+              <p className="text-foreground-secondary">暂无主机组</p>
+            </div>
+          ) : shouldShowLoading ? (
             <div className="flex flex-col items-center justify-center py-20">
               <SimpleLoader className="py-4" />
             </div>
@@ -338,13 +343,9 @@ const HostMonitoring = () => {
               </div>
               
               {shouldShowNoData && (
-                <div className="text-center py-12">
-                  <div className="space-y-3">
-                    <div className="text-gray-400">暂无数据</div>
-                    <div className="text-sm text-gray-500">
-                      该主机组当前没有可用的系统监控数据
-                    </div>
-                  </div>
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <Monitor size={48} className="text-foreground-secondary mb-4" />
+                  <p className="text-foreground-secondary">暂无监控数据</p>
                 </div>
               )}
             </>

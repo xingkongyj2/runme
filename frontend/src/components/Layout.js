@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Terminal, User, LogOut, Settings, Palette, Zap, Fan } from 'lucide-react';
+import { Terminal, User, LogOut, Settings, Zap, Fan } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useMenuConfig } from '../contexts/MenuConfigContext';
 
@@ -21,10 +21,6 @@ const Layout = ({ children }) => {
     navigate('/settings');
   };
 
-  const handleStyleToggle = () => {
-    // 风格切换功能，暂时不做任何操作
-    console.log('风格切换按钮被点击');
-  };
 
   return (
     <div className="flex min-h-screen bg-black">
@@ -85,15 +81,6 @@ const Layout = ({ children }) => {
                   title="系统设置"
                 >
                   <Settings className="w-4 h-4" />
-                </button>
-                
-                {/* 风格切换按钮 */}
-                <button
-                  onClick={handleStyleToggle}
-                  className="p-1.5 rounded-lg text-gray-300 hover:text-white hover:bg-gray-800/50 transition-all duration-200"
-                  title="风格切换"
-                >
-                  <Palette className="w-4 h-4" />
                 </button>
                 
                 {/* 退出登录按钮 */}

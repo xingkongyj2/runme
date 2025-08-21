@@ -270,7 +270,7 @@ const Deployment = () => {
       {tasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <GitBranch size={48} className="text-foreground-secondary mb-4" />
-          <p className="text-foreground-secondary">暂无部署任务，点击上方按钮创建第一个部署任务</p>
+          <p className="text-foreground-secondary">暂无部署任务</p>
         </div>
       ) : (
         <div className="bg-card rounded-xl border border-border overflow-hidden">
