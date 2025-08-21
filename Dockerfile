@@ -16,7 +16,7 @@ WORKDIR /app/backend
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/ .
-RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o main .
+RUN CGO_ENABLED=1 GOOS=linux go build -tags "sqlite_omit_load_extension" -o main .
 
 # 最终运行阶段
 FROM alpine:3.19
