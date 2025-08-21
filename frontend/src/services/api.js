@@ -50,6 +50,8 @@ export const hostGroupAPI = {
   delete: (id) => api.delete(`/hostgroups/${id}`),
   // 获取主机组下的主机列表
   getHosts: (groupId) => api.get(`/hostgroups/${groupId}/hosts`),
+  // Ping主机组中的所有主机
+  pingHosts: (groupId) => api.post(`/hostgroups/${groupId}/ping`),
 };
 
 // 主机API - 扩展版本
@@ -70,7 +72,10 @@ export const hostAPI = {
   delete: (id) => api.delete(`/hosts/${id}`),
   
   // 获取操作系统信息
-  getOSInfo: (id) => api.get(`/hosts/${id}/osinfo`)
+  getOSInfo: (id) => api.get(`/hosts/${id}/osinfo`),
+  
+  // Ping指定主机
+  ping: (id) => api.post(`/hosts/${id}/ping`)
 };
 
 // 脚本API

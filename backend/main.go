@@ -48,6 +48,7 @@ func main() {
 				hostGroupRoutes.PUT("/:id", handlers.UpdateHostGroup)
 				hostGroupRoutes.DELETE("/:id", handlers.DeleteHostGroup)
 				hostGroupRoutes.GET("/:groupId/hosts", handlers.GetHostsByGroupID)
+				hostGroupRoutes.POST("/:groupId/ping", handlers.PingHostsByGroup)
 			}
 			// 主机路由
 			hostRoutes := protected.Group("/hosts")
@@ -57,6 +58,7 @@ func main() {
 				hostRoutes.PUT("/:id", handlers.UpdateHost)
 				hostRoutes.DELETE("/:id", handlers.DeleteHost)
 				hostRoutes.GET("/:id/osinfo", handlers.GetHostOSInfo)
+				hostRoutes.POST("/:id/ping", handlers.PingHost)
 			}
 			// Shell脚本路由
 			scriptRoutes := protected.Group("/scripts")

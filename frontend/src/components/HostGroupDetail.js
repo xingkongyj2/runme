@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Terminal, X, Wifi, Upload, Monitor, Users } from 'lucide-react';
-import { hostGroupAPI, hostAPI } from '../services/api';
+import { Plus, Edit, Trash2, Terminal, X, Wifi, Upload, Users } from 'lucide-react';
+import { hostAPI, hostGroupAPI } from '../services/api';
 import Modal from './Modal';
+import useToast from '../hooks/useToast';
+import ToastContainer from './ToastContainer';
 
 // 获取操作系统简写
 const getOSShortName = (osInfo) => {
@@ -38,6 +40,7 @@ const getOSShortName = (osInfo) => {
 };
 
 const HostGroupDetail = ({ group, onClose }) => {
+  const { toasts, showSuccess, showError, showWarning, hideToast } = useToast();
   const [hosts, setHosts] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBatchModal, setShowBatchModal] = useState(false);
@@ -53,13 +56,17 @@ const HostGroupDetail = ({ group, onClose }) => {
     password: ''
   });
   const [batchHosts, setBatchHosts] = useState('');
-  const [groupData, setGroupData] = useState(group);
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadPath, setUploadPath] = useState('/tmp/');
   const [pingResults, setPingResults] = useState({});
   const [pinging, setPinging] = useState(false);
   // 新增状态：控制延迟数据显示
   const [showingResults, setShowingResults] = useState(false);
+  // 批量添加相关状态
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [batchResults, setBatchResults] = useState({ success: [], failed: [] });
 
   // 移除旧的 hosts 字符串解析逻辑，现在通过API获取主机数据
 
@@ -85,53 +92,53 @@ const HostGroupDetail = ({ group, onClose }) => {
       // 这里需要调用后端API上传文件
       // await hostGroupAPI.uploadFile(formData);
       
-      alert('文件上传成功！');
+      showSuccess('文件上传成功！');
       setShowUploadModal(false);
       setUploadFile(null);
       setUploadPath('/tmp/');
     } catch (error) {
       console.error('文件上传失败:', error);
-      alert('文件上传失败');
+      showError('文件上传失败，请重试');
     }
   };
 
-  // Ping功能
-  // 修复第82行的latency变量问题 - 移除未使用的变量
+  // Ping功能 - 使用真实的后端API
   const handlePingAll = async () => {
     setPinging(true);
     setShowingResults(false);
-    const results = {};
     
-    for (const host of hosts) {
-      try {
-        // 移除未使用的startTime变量
-        // 这里需要调用后端API进行ping测试
-        // const response = await hostGroupAPI.pingHost(host.ip);
-        
-        // 模拟ping延迟
-        await new Promise(resolve => setTimeout(resolve, Math.random() * 100 + 50));
-        
-        results[host.ip] = {
-          success: Math.random() > 0.1, // 90%成功率
-          latency: Math.floor(Math.random() * 100 + 10) // 10-110ms随机延迟
-        };
-      } catch (error) {
-        results[host.ip] = {
-          success: false,
-          latency: null
-        };
+    try {
+      // 调用后端API进行批量ping测试
+      const response = await hostGroupAPI.pingHosts(group.id);
+      const results = response.data.data;
+      
+      setPingResults(results);
+      setPinging(false);
+      setShowingResults(true);
+      
+      // 显示ping结果摘要
+      const successCount = Object.values(results).filter(r => r.success).length;
+      const totalCount = Object.keys(results).length;
+      
+      if (successCount === totalCount) {
+        showSuccess(`Ping完成！所有 ${totalCount} 台主机都响应正常`);
+      } else if (successCount === 0) {
+        showError(`Ping完成！所有 ${totalCount} 台主机都无响应`);
+      } else {
+        showWarning(`Ping完成！${successCount}/${totalCount} 台主机响应正常`);
       }
+      
+      // 5秒后清除延迟数据显示
+      setTimeout(() => {
+        setShowingResults(false);
+        setPingResults({});
+      }, 5000);
+      
+    } catch (error) {
+      console.error('Ping测试失败:', error);
+      showError('Ping测试失败，请重试');
+      setPinging(false);
     }
-    
-    setPingResults(results);
-    setPinging(false);
-    setShowingResults(true);
-    
-    // 2秒后清除延迟数据显示
-    setTimeout(() => {
-      setShowingResults(false);
-      setPingResults({});
-    }, 2000);
   };
 
   useEffect(() => {
@@ -177,9 +184,10 @@ const HostGroupDetail = ({ group, onClose }) => {
         setHosts(updatedHosts);
         setNewHost({ ip: '', port: '22', username: 'root', password: '' });
         setShowAddModal(false);
+        showSuccess('主机添加成功！');
       } catch (error) {
         console.error('添加主机失败:', error);
-        alert('添加主机失败');
+        showError(`添加主机失败: ${error.response?.data?.error || error.message}`);
       }
     }
   };
@@ -203,10 +211,18 @@ const HostGroupDetail = ({ group, onClose }) => {
       }
       
       if (newHostList.length > 0) {
+        setBatchLoading(true);
+        setBatchProgress({ current: 0, total: newHostList.length });
+        
+        const results = { success: [], failed: [] };
+        const addedHosts = [];
+        
         try {
-          // 批量添加主机到数据库
-          const addedHosts = [];
-          for (const hostData of newHostList) {
+          // 逐个添加主机，显示进度
+          for (let i = 0; i < newHostList.length; i++) {
+            const hostData = newHostList[i];
+            setBatchProgress({ current: i + 1, total: newHostList.length });
+            
             try {
               const response = await hostAPI.create({
                 ...hostData,
@@ -220,32 +236,56 @@ const HostGroupDetail = ({ group, onClose }) => {
                 const osResponse = await hostAPI.getOSInfo(newHostData.id);
                 newHostData.os_info = osResponse.data.os_info;
               } catch (error) {
-                console.error('获取操作系统信息失败:', error);
                 newHostData.os_info = '未知';
               }
               
               addedHosts.push(newHostData);
+              results.success.push({
+                ip: hostData.ip,
+                port: hostData.port,
+                username: hostData.username
+              });
+              
             } catch (error) {
               console.error(`添加主机 ${hostData.ip} 失败:`, error);
-              alert(`添加主机 ${hostData.ip} 失败: ${error.response?.data?.error || error.message}`);
+              results.failed.push({
+                ip: hostData.ip,
+                port: hostData.port,
+                username: hostData.username,
+                error: error.response?.data?.error || error.message
+              });
             }
           }
           
+          // 更新前端显示
           if (addedHosts.length > 0) {
-            // 更新前端显示
             const updatedHosts = [...hosts, ...addedHosts];
             setHosts(updatedHosts);
-            alert(`成功添加了 ${addedHosts.length} 台主机`);
           }
           
+          // 设置结果并显示结果弹窗
+          setBatchResults(results);
+          setBatchLoading(false);
+          setShowResultModal(true);
           setBatchHosts('');
           setShowBatchModal(false);
+          
+          // 显示总体结果提示
+          if (results.failed.length === 0) {
+            showSuccess(`批量添加完成！成功添加 ${results.success.length} 台主机`);
+          } else if (results.success.length === 0) {
+            showError(`批量添加失败！所有 ${results.failed.length} 台主机添加失败`);
+          } else {
+            showWarning(`批量添加完成！成功 ${results.success.length} 台，失败 ${results.failed.length} 台`);
+          }
+          
         } catch (error) {
-          console.error('批量添加失败:', error);
-          alert('批量添加失败');
+          console.error('批量添加过程出错:', error);
+          setBatchLoading(false);
+          showError('批量添加过程中出现错误');
         }
       } else {
-        alert('请按照正确格式输入：IP 端口 用户名 密码');
+        showWarning('请按照正确格式输入：IP 端口 用户名 密码');
       }
     }
   };
@@ -280,9 +320,10 @@ const HostGroupDetail = ({ group, onClose }) => {
         setNewHost({ ip: '', port: '22', username: 'root', password: '' });
         setEditingHost(null);
         setShowAddModal(false);
+        showSuccess('主机更新成功！');
       } catch (error) {
         console.error('更新主机失败:', error);
-        alert('更新主机失败');
+        showError(`更新主机失败: ${error.response?.data?.error || error.message}`);
       }
     }
   };
@@ -295,9 +336,10 @@ const HostGroupDetail = ({ group, onClose }) => {
         setHosts(updatedHosts);
         setShowDeleteModal(false);
         setDeletingHost(null);
+        showSuccess('主机删除成功！');
       } catch (error) {
         console.error('删除主机失败:', error);
-        alert('删除主机失败');
+        showError(`删除主机失败: ${error.response?.data?.error || error.message}`);
       }
     }
   };
@@ -625,11 +667,34 @@ const HostGroupDetail = ({ group, onClose }) => {
             />
           </div>
 
+          {/* 进度显示 */}
+          {batchLoading && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-foreground">添加进度:</span>
+                <span className="text-sm text-blue-600 font-medium">
+                  {batchProgress.current} / {batchProgress.total}
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                <div 
+                  className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
+                  style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
+                ></div>
+              </div>
+              <div className="flex items-center justify-center gap-2 text-sm text-blue-600">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+                正在添加主机 {batchProgress.current} / {batchProgress.total}...
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-end gap-3 pt-4">
             <button 
               type="button" 
               className="btn-secondary"
               onClick={() => setShowBatchModal(false)}
+              disabled={batchLoading}
             >
               取消
             </button>
@@ -637,8 +702,9 @@ const HostGroupDetail = ({ group, onClose }) => {
               type="button" 
               className="btn-primary"
               onClick={handleBatchAdd}
+              disabled={batchLoading}
             >
-              确认添加
+              {batchLoading ? '添加中...' : '确认添加'}
             </button>
           </div>
         </div>
@@ -681,6 +747,90 @@ const HostGroupDetail = ({ group, onClose }) => {
           </div>
         </div>
       </Modal>
+
+      {/* 批量添加结果弹窗 */}
+      <Modal 
+        isOpen={showResultModal} 
+        onClose={() => setShowResultModal(false)}
+        title="批量添加结果"
+      >
+        <div className="space-y-4">
+          {/* 成功统计 */}
+          <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+            <span className="text-green-800 dark:text-green-200 font-medium">
+              成功添加: {batchResults.success.length} 台主机
+            </span>
+          </div>
+
+          {/* 失败统计 */}
+          {batchResults.failed.length > 0 && (
+            <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+              <div className="w-2 h-2 rounded-full bg-red-500"></div>
+              <span className="text-red-800 dark:text-red-200 font-medium">
+                添加失败: {batchResults.failed.length} 台主机
+              </span>
+            </div>
+          )}
+
+          {/* 失败详情 */}
+          {batchResults.failed.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="font-medium text-foreground">失败详情:</h4>
+              <div className="max-h-64 overflow-y-auto space-y-2">
+                {batchResults.failed.map((failedHost, index) => (
+                  <div key={index} className="p-3 bg-red-50 dark:bg-red-900/10 rounded border border-red-200 dark:border-red-800">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-mono text-sm text-red-800 dark:text-red-200">
+                        {failedHost.ip}:{failedHost.port}
+                      </span>
+                      <span className="text-xs text-red-600 dark:text-red-400">
+                        用户: {failedHost.username}
+                      </span>
+                    </div>
+                    <p className="text-sm text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-900/20 p-2 rounded">
+                      错误: {failedHost.error}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 成功详情（可折叠） */}
+          {batchResults.success.length > 0 && (
+            <details className="space-y-2">
+              <summary className="cursor-pointer font-medium text-foreground hover:text-green-600">
+                查看成功添加的主机 ({batchResults.success.length}台)
+              </summary>
+              <div className="max-h-32 overflow-y-auto space-y-1 ml-4">
+                {batchResults.success.map((successHost, index) => (
+                  <div key={index} className="text-sm text-green-700 dark:text-green-300">
+                    <span className="font-mono">{successHost.ip}:{successHost.port}</span>
+                    <span className="ml-2 text-green-600 dark:text-green-400">({successHost.username})</span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button 
+              type="button" 
+              className="btn-primary"
+              onClick={() => setShowResultModal(false)}
+            >
+              确定
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Toast 提示容器 */}
+      <ToastContainer 
+        toasts={toasts} 
+        onClose={hideToast} 
+      />
     </>
   );
 };

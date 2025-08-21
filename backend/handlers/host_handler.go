@@ -3,7 +3,10 @@ package handlers
 import (
 	"database/sql"
 	"net/http"
+	"os/exec"
+	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"runme-backend/database"
@@ -190,4 +193,122 @@ func DeleteHost(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Host deleted successfully"})
+}
+
+// PingHost Ping指定主机
+func PingHost(c *gin.Context) {
+	hostIDStr := c.Param("id")
+	hostID, err := strconv.Atoi(hostIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid host ID"})
+		return
+	}
+
+	// 获取主机信息
+	var host models.Host
+	err = database.DB.QueryRow("SELECT id, ip, port, username, password, host_group_id, os_info, created_at, updated_at FROM hosts WHERE id = ?", hostID).
+		Scan(&host.ID, &host.IP, &host.Port, &host.Username, &host.Password, &host.HostGroupID, &host.OSInfo, &host.CreatedAt, &host.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Host not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch host"})
+		}
+		return
+	}
+
+	// 执行ping命令
+	start := time.Now()
+
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command("ping", "-n", "1", "-w", "3000", host.IP)
+	} else {
+		cmd = exec.Command("ping", "-c", "1", "-W", "3", host.IP)
+	}
+
+	output, err := cmd.CombinedOutput()
+	latency := time.Since(start).Milliseconds()
+
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"data": gin.H{
+				"success": false,
+				"latency": nil,
+				"message": "Ping failed: " + strings.TrimSpace(string(output)),
+			},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": gin.H{
+			"success": true,
+			"latency": latency,
+			"message": "Ping successful",
+		},
+	})
+}
+
+// PingHostsByGroup Ping主机组中的所有主机
+func PingHostsByGroup(c *gin.Context) {
+	groupIDStr := c.Param("groupId")
+	groupID, err := strconv.Atoi(groupIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid group ID"})
+		return
+	}
+
+	// 获取主机组中的所有主机
+	rows, err := database.DB.Query("SELECT id, ip, port, username, password, host_group_id, os_info, created_at, updated_at FROM hosts WHERE host_group_id = ?", groupID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch hosts"})
+		return
+	}
+	defer rows.Close()
+
+	var hosts []models.Host
+	for rows.Next() {
+		var host models.Host
+		var createdAt, updatedAt string
+		err := rows.Scan(&host.ID, &host.IP, &host.Port, &host.Username, &host.Password, &host.HostGroupID, &host.OSInfo, &createdAt, &updatedAt)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan host data"})
+			return
+		}
+		hosts = append(hosts, host)
+	}
+
+	// 对每个主机执行ping
+	results := make(map[string]interface{})
+
+	for _, host := range hosts {
+		start := time.Now()
+
+		var cmd *exec.Cmd
+		if runtime.GOOS == "windows" {
+			cmd = exec.Command("ping", "-n", "1", "-w", "3000", host.IP)
+		} else {
+			cmd = exec.Command("ping", "-c", "1", "-W", "3", host.IP)
+		}
+
+		output, err := cmd.CombinedOutput()
+		latency := time.Since(start).Milliseconds()
+
+		if err != nil {
+			results[host.IP] = gin.H{
+				"success": false,
+				"latency": nil,
+				"message": "Ping failed: " + strings.TrimSpace(string(output)),
+			}
+		} else {
+			results[host.IP] = gin.H{
+				"success": true,
+				"latency": latency,
+				"message": "Ping successful",
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": results})
 }
