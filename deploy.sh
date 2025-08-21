@@ -1,7 +1,10 @@
 #!/bin/bash
 
 # RunMe 项目一键部署脚本
-# 使用方法: ./deploy.sh
+# 使用方法: 
+# 1. git clone https://github.com/xingkongyj2/runme.git
+# 2. cd runme
+# 3. ./deploy.sh
 
 set -e  # 遇到错误立即退出
 
