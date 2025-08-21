@@ -5,7 +5,7 @@ echo "🚀 启动 RunMe 项目..."
 
 # 定义端口
 FRONTEND_PORT=3000
-BACKEND_PORT=8080
+BACKEND_PORT=20002
 
 # 函数：杀死指定端口的进程
 kill_port() {

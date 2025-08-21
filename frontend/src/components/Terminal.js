@@ -18,7 +18,7 @@ const TerminalComponent = ({ hostId, hostIP, onClose, fullscreen = false }) => {
     if (!hostId) return;
 
     // 使用主机ID建立WebSocket连接
-    const wsUrl = `ws://localhost:8080/api/terminal/${hostId}`;
+    const wsUrl = `ws://localhost:20002/api/terminal/${hostId}`;
     
     websocket.current = new WebSocket(wsUrl);
 

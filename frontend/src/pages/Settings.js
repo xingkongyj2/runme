@@ -72,7 +72,6 @@ const Settings = () => {
           <div className="space-y-6">
             {/* 操作按钮 */}
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">菜单管理</h2>
               <button
                 onClick={handleReset}
                 className="flex items-center gap-2 px-4 py-2 bg-card hover:bg-background-secondary rounded-lg transition-colors border border-border"
@@ -172,7 +171,6 @@ const Settings = () => {
         {/* 系统配置标签页 */}
         {activeTab === 'system' && (
           <div className="space-y-6">
-            <h2 className="text-xl font-semibold">系统配置</h2>
             <div className="bg-card rounded-lg p-6 border border-border">
               <p className="text-gray-400">系统配置功能开发中...</p>
             </div>

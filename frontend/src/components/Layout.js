@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Terminal, User, LogOut, Settings, Zap, Fan } from 'lucide-react';
+import { Terminal, User, LogOut, Settings, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useMenuConfig } from '../contexts/MenuConfigContext';
 
@@ -30,14 +30,12 @@ const Layout = ({ children }) => {
         <div className="h-full rounded-2xl shadow-2xl border border-gray-900/30 flex flex-col overflow-hidden" style={{backgroundColor: '#18181b'}}>
           {/* 头部 */}
           <div className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-                <Fan className="w-5 h-5 text-black" />
-              </div>
+            <Link to="/" className="flex items-center gap-3">
+              <span className="text-2xl">👻</span>
               <span className="text-xl font-bold text-white">
                 RunMe
               </span>
-            </div>
+            </Link>
           </div>
           
           {/* 菜单区域 */}

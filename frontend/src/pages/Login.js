@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Terminal, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Login = () => {
@@ -36,13 +36,7 @@ const Login = () => {
       <div className="w-full max-w-md">
         {/* Logo和标题 */}
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center">
-              <Terminal className="w-8 h-8 text-black" />
-            </div>
-          </div>
           <h1 className="text-3xl font-bold text-white mb-2">RunMe</h1>
-          <p className="text-gray-400">登录到您的账户</p>
         </div>
 
         {/* 登录表单 */}
@@ -99,12 +93,6 @@ const Login = () => {
               {loading ? '登录中...' : '登录'}
             </button>
           </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-gray-400 text-sm">
-              默认管理员账户: admin / admin123
-            </p>
-          </div>
         </div>
       </div>
     </div>

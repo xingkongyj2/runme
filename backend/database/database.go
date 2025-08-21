@@ -275,7 +275,7 @@ func createDefaultAdmin() {
 
 	// 如果没有管理员账户，创建默认账户
 	if count == 0 {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte("xingkong22"), bcrypt.DefaultCost)
 		if err != nil {
 			log.Printf("Failed to hash password: %v", err)
 			return
@@ -284,7 +284,7 @@ func createDefaultAdmin() {
 		_, err = DB.Exec(`
 			INSERT INTO users (username, password, email, role, created_at, updated_at) 
 			VALUES (?, ?, ?, ?, ?, ?)
-		`, "admin", string(hashedPassword), "admin@example.com", "admin", time.Now(), time.Now())
+		`, "兔子翻书", string(hashedPassword), "admin@example.com", "admin", time.Now(), time.Now())
 
 		if err != nil {
 			log.Printf("Failed to create default admin: %v", err)
