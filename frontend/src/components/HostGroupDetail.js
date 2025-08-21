@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Terminal, X, Wifi, Upload, Users } from 'lucide-react';
+import { Plus, Edit, Trash2, Terminal, X, Wifi, Upload, Users, Link } from 'lucide-react';
 import { hostAPI, hostGroupAPI } from '../services/api';
 import Modal from './Modal';
 import useToast from '../hooks/useToast';
@@ -60,6 +60,10 @@ const HostGroupDetail = ({ group, onClose }) => {
   const [uploadPath, setUploadPath] = useState('/tmp/');
   const [pingResults, setPingResults] = useState({});
   const [pinging, setPinging] = useState(false);
+  // SSH测试相关状态
+  const [sshResults, setSSHResults] = useState({});
+  const [sshTesting, setSSHTesting] = useState(false);
+  const [showingSSHResults, setShowingSSHResults] = useState(false);
   // 新增状态：控制延迟数据显示
   const [showingResults, setShowingResults] = useState(false);
   // 批量添加相关状态
@@ -138,6 +142,45 @@ const HostGroupDetail = ({ group, onClose }) => {
       console.error('Ping测试失败:', error);
       showError('Ping测试失败，请重试');
       setPinging(false);
+    }
+  };
+
+  // SSH连接测试功能
+  const handleSSHTestAll = async () => {
+    setSSHTesting(true);
+    setShowingSSHResults(false);
+    
+    try {
+      // 调用后端API进行批量SSH测试
+      const response = await hostGroupAPI.testSSHHosts(group.id);
+      const results = response.data.data;
+      
+      setSSHResults(results);
+      setSSHTesting(false);
+      setShowingSSHResults(true);
+      
+      // 显示SSH测试结果摘要
+      const successCount = Object.values(results).filter(r => r.success).length;
+      const totalCount = Object.keys(results).length;
+      
+      if (successCount === totalCount) {
+        showSuccess(`SSH测试完成！所有 ${totalCount} 台主机都连接正常`);
+      } else if (successCount === 0) {
+        showError(`SSH测试完成！所有 ${totalCount} 台主机都连接失败`);
+      } else {
+        showWarning(`SSH测试完成！${successCount}/${totalCount} 台主机连接正常`);
+      }
+      
+      // 5秒后清除结果显示
+      setTimeout(() => {
+        setShowingSSHResults(false);
+        setSSHResults({});
+      }, 5000);
+      
+    } catch (error) {
+      console.error('SSH测试失败:', error);
+      showError('SSH测试失败，请重试');
+      setSSHTesting(false);
     }
   };
 
@@ -380,6 +423,14 @@ const HostGroupDetail = ({ group, onClose }) => {
                 <Wifi size={20} />
               </button>
               <button
+                onClick={handleSSHTestAll}
+                disabled={sshTesting || showingSSHResults}
+                className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20 disabled:opacity-50"
+                title="SSH连接测试"
+              >
+                <Link size={20} />
+              </button>
+              <button
                 onClick={onClose}
                 className="p-2 text-foreground-secondary hover:text-foreground hover:bg-background-secondary rounded-lg transition-colors"
               >
@@ -428,6 +479,7 @@ const HostGroupDetail = ({ group, onClose }) => {
                       <th className="w-32 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">主机IP</th>
                       <th className="w-24 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">系统</th>
                       <th className="w-20 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">延迟</th>
+                      <th className="w-20 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">联通性</th>
                       <th className="w-32 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">操作</th>
                     </tr>
                   </thead>
@@ -461,6 +513,17 @@ const HostGroupDetail = ({ group, onClose }) => {
                               <span className="text-green-500">{pingResults[host.ip].latency}ms</span>
                             ) : (
                               <span className="text-red-500">超时</span>
+                            )
+                          ) : (
+                            <span className="text-gray-500">-</span>
+                          )}
+                        </td>
+                        <td className="w-20 py-4 text-center">
+                          {showingSSHResults && sshResults[host.ip] ? (
+                            sshResults[host.ip].success ? (
+                              <span className="text-green-500 font-semibold">连通</span>
+                            ) : (
+                              <span className="text-red-500 font-semibold" title={sshResults[host.ip].message}>断开</span>
                             )
                           ) : (
                             <span className="text-gray-500">-</span>

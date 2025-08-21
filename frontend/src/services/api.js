@@ -52,6 +52,8 @@ export const hostGroupAPI = {
   getHosts: (groupId) => api.get(`/hostgroups/${groupId}/hosts`),
   // Ping主机组中的所有主机
   pingHosts: (groupId) => api.post(`/hostgroups/${groupId}/ping`),
+  // SSH连接测试主机组中的所有主机
+  testSSHHosts: (groupId) => api.post(`/hostgroups/${groupId}/ssh-test`),
 };
 
 // 主机API - 扩展版本
@@ -75,7 +77,10 @@ export const hostAPI = {
   getOSInfo: (id) => api.get(`/hosts/${id}/osinfo`),
   
   // Ping指定主机
-  ping: (id) => api.post(`/hosts/${id}/ping`)
+  ping: (id) => api.post(`/hosts/${id}/ping`),
+  
+  // SSH连接测试指定主机
+  testSSH: (id) => api.post(`/hosts/${id}/ssh-test`)
 };
 
 // 脚本API

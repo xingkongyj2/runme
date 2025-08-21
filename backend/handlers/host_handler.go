@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os/exec"
 	"runtime"
@@ -16,6 +17,7 @@ import (
 	"runme-backend/services" // 添加这一行
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/ssh"
 )
 
 // GetHostsByGroupID 获取指定主机组的所有主机
@@ -324,4 +326,140 @@ func PingHostsByGroup(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": results})
+}
+
+// TestSSHConnection 测试SSH连接
+func TestSSHConnection(c *gin.Context) {
+	hostIDStr := c.Param("id")
+	hostID, err := strconv.Atoi(hostIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid host ID"})
+		return
+	}
+
+	// 获取主机信息
+	var host models.Host
+	err = database.DB.QueryRow("SELECT id, ip, port, username, password, host_group_id, os_info, created_at, updated_at FROM hosts WHERE id = ?", hostID).
+		Scan(&host.ID, &host.IP, &host.Port, &host.Username, &host.Password, &host.HostGroupID, &host.OSInfo, &host.CreatedAt, &host.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Host not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch host"})
+		}
+		return
+	}
+
+	// 测试SSH连接
+	start := time.Now()
+	success, message := testSSHConnect(host.IP, host.Port, host.Username, host.Password)
+	latency := time.Since(start).Milliseconds()
+
+	log.Printf("SSH test for %s:%d (ID: %d): success=%v, latency=%dms, message=%s",
+		host.IP, host.Port, host.ID, success, latency, message)
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": gin.H{
+			"success": success,
+			"latency": latency,
+			"message": message,
+		},
+	})
+}
+
+// TestSSHConnectionsByGroup 测试主机组中所有主机的SSH连接
+func TestSSHConnectionsByGroup(c *gin.Context) {
+	groupIDStr := c.Param("groupId")
+	groupID, err := strconv.Atoi(groupIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid group ID"})
+		return
+	}
+
+	// 获取主机组中的所有主机
+	rows, err := database.DB.Query("SELECT id, ip, port, username, password, host_group_id, os_info, created_at, updated_at FROM hosts WHERE host_group_id = ?", groupID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch hosts"})
+		return
+	}
+	defer rows.Close()
+
+	var hosts []models.Host
+	for rows.Next() {
+		var host models.Host
+		var createdAt, updatedAt string
+		err := rows.Scan(&host.ID, &host.IP, &host.Port, &host.Username, &host.Password, &host.HostGroupID, &host.OSInfo, &createdAt, &updatedAt)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan host data"})
+			return
+		}
+		hosts = append(hosts, host)
+	}
+
+	// 对每个主机测试SSH连接
+	results := make(map[string]interface{})
+	log.Printf("Starting batch SSH test for group %d with %d hosts", groupID, len(hosts))
+
+	for _, host := range hosts {
+		start := time.Now()
+		success, message := testSSHConnect(host.IP, host.Port, host.Username, host.Password)
+		latency := time.Since(start).Milliseconds()
+
+		log.Printf("SSH test for %s:%d (ID: %d): success=%v, latency=%dms, message=%s",
+			host.IP, host.Port, host.ID, success, latency, message)
+
+		results[host.IP] = gin.H{
+			"success": success,
+			"latency": latency,
+			"message": message,
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": results})
+}
+
+// testSSHConnect 测试SSH连接的辅助函数
+func testSSHConnect(host string, port int, username, password string) (bool, string) {
+	// 配置SSH连接
+	config := &ssh.ClientConfig{
+		User: username,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(password),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // 注意：生产环境应该验证主机密钥
+		Timeout:         5 * time.Second,             // 5秒超时
+	}
+
+	// 构建连接地址
+	address := fmt.Sprintf("%s:%d", host, port)
+
+	// 尝试建立SSH连接
+	client, err := ssh.Dial("tcp", address, config)
+	if err != nil {
+		// 检查是否是网络连接错误
+		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+			return false, "Connection timeout"
+		}
+		return false, fmt.Sprintf("SSH connection failed: %s", err.Error())
+	}
+	defer client.Close()
+
+	// 尝试执行一个简单的命令来确认连接正常
+	session, err := client.NewSession()
+	if err != nil {
+		return false, fmt.Sprintf("Failed to create session: %s", err.Error())
+	}
+	defer session.Close()
+
+	// 执行echo命令测试
+	output, err := session.Output("echo 'SSH connection test'")
+	if err != nil {
+		return false, fmt.Sprintf("Command execution failed: %s", err.Error())
+	}
+
+	if strings.Contains(string(output), "SSH connection test") {
+		return true, "SSH connection successful"
+	}
+
+	return false, "SSH connection established but command test failed"
 }
