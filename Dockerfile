@@ -46,7 +46,7 @@ COPY --from=frontend-builder /app/frontend/build ./frontend/
 RUN chmod +x /app/backend/main
 
 # 创建非root用户
-RUN adduser -D -s /bin/sh appuser
+RUN adduser --disabled-password --shell /bin/sh --gecos "" appuser
 RUN chown -R appuser:appuser /app
 USER appuser
 
