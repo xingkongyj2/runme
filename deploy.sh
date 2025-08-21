@@ -51,16 +51,22 @@ fi
 echo -e "${BLUE}🏗️  构建 Docker 镜像...${NC}"
 docker build -t ${PROJECT_NAME} .
 
-# 创建本地数据目录
-mkdir -p ./runme-data
-echo -e "${GREEN}✅ 创建本地数据目录: ./runme-data${NC}"
+# 获取脚本所在目录（项目根目录）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DATA_DIR="${SCRIPT_DIR}/runme-data"
+
+# 创建本地数据目录并设置权限
+mkdir -p "${DATA_DIR}"
+chmod 755 "${DATA_DIR}"
+echo -e "${GREEN}✅ 创建本地数据目录: ${DATA_DIR}${NC}"
 
 # 运行容器
 echo -e "${BLUE}🚢 启动容器...${NC}"
 docker run -d \
   --name ${CONTAINER_NAME} \
   -p ${PORT}:${PORT} \
-  -v "$(pwd)/runme-data":/app/data \
+  -v "${DATA_DIR}":/app/data \
+  --user root \
   --restart unless-stopped \
   ${PROJECT_NAME}
 
@@ -88,8 +94,8 @@ if docker ps --format 'table {{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     echo -e "  查看容器日志: ${BLUE}docker logs ${CONTAINER_NAME}${NC}"
     echo -e "  停止容器: ${BLUE}docker stop ${CONTAINER_NAME}${NC}"
     echo -e "  重启容器: ${BLUE}docker restart ${CONTAINER_NAME}${NC}"
-    echo -e "  查看数据目录: ${BLUE}ls -la ./runme-data${NC}"
-    echo -e "  数据库路径: ${BLUE}./runme-data/runme.db${NC}"
+    echo -e "  查看数据目录: ${BLUE}ls -la ${DATA_DIR}${NC}"
+    echo -e "  数据库路径: ${BLUE}${DATA_DIR}/runme.db${NC}"
     
 else
     echo -e "${RED}❌ 容器启动失败！${NC}"
