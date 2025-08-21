@@ -8,17 +8,21 @@ RUN npm run build
 
 # 后端构建阶段
 FROM golang:1.21-alpine AS backend-builder
+
+# 安装CGO依赖
+RUN apk add --no-cache gcc musl-dev sqlite-dev
+
 WORKDIR /app/backend
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/ .
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o main .
 
 # 最终运行阶段
 FROM alpine:3.19
 
-# 安装必要的工具
-RUN apk --no-cache add ca-certificates tzdata
+# 安装必要的工具和SQLite运行时依赖
+RUN apk --no-cache add ca-certificates tzdata sqlite
 
 # 设置时区为中国标准时间
 ENV TZ=Asia/Shanghai
