@@ -61,15 +61,7 @@ const HostGroupDetail = ({ group, onClose }) => {
   // 新增状态：控制延迟数据显示
   const [showingResults, setShowingResults] = useState(false);
 
-  useEffect(() => {
-    if (group.hosts) {
-      const hostList = group.hosts.split('\n').filter(h => h.trim()).map((host, index) => ({
-        id: index,
-        ip: host.trim()
-      }));
-      setHosts(hostList);
-    }
-  }, [group]);
+  // 移除旧的 hosts 字符串解析逻辑，现在通过API获取主机数据
 
   const openTerminal = (hostId) => {
     // 使用主机ID打开新窗口
@@ -192,7 +184,7 @@ const HostGroupDetail = ({ group, onClose }) => {
     }
   };
 
-  const handleBatchAdd = () => {
+  const handleBatchAdd = async () => {
     if (batchHosts.trim()) {
       const lines = batchHosts.split('\n').filter(line => line.trim());
       const newHostList = [];
@@ -202,9 +194,8 @@ const HostGroupDetail = ({ group, onClose }) => {
         if (parts.length >= 4) {
           // 格式: IP 端口 用户名 密码
           newHostList.push({
-            id: Date.now() + Math.random(),
             ip: parts[0],
-            port: parts[1] || '22',
+            port: parseInt(parts[1]) || 22,
             username: parts[2] || 'root',
             password: parts[3]
           });
@@ -212,11 +203,47 @@ const HostGroupDetail = ({ group, onClose }) => {
       }
       
       if (newHostList.length > 0) {
-        const updatedHosts = [...hosts, ...newHostList];
-        setHosts(updatedHosts);
-        updateGroupHosts(updatedHosts);
-        setBatchHosts('');
-        setShowBatchModal(false);
+        try {
+          // 批量添加主机到数据库
+          const addedHosts = [];
+          for (const hostData of newHostList) {
+            try {
+              const response = await hostAPI.create({
+                ...hostData,
+                host_group_id: group.id
+              });
+              
+              const newHostData = response.data.data;
+              
+              // 尝试获取操作系统信息
+              try {
+                const osResponse = await hostAPI.getOSInfo(newHostData.id);
+                newHostData.os_info = osResponse.data.os_info;
+              } catch (error) {
+                console.error('获取操作系统信息失败:', error);
+                newHostData.os_info = '未知';
+              }
+              
+              addedHosts.push(newHostData);
+            } catch (error) {
+              console.error(`添加主机 ${hostData.ip} 失败:`, error);
+              alert(`添加主机 ${hostData.ip} 失败: ${error.response?.data?.error || error.message}`);
+            }
+          }
+          
+          if (addedHosts.length > 0) {
+            // 更新前端显示
+            const updatedHosts = [...hosts, ...addedHosts];
+            setHosts(updatedHosts);
+            alert(`成功添加了 ${addedHosts.length} 台主机`);
+          }
+          
+          setBatchHosts('');
+          setShowBatchModal(false);
+        } catch (error) {
+          console.error('批量添加失败:', error);
+          alert('批量添加失败');
+        }
       } else {
         alert('请按照正确格式输入：IP 端口 用户名 密码');
       }
@@ -275,24 +302,7 @@ const HostGroupDetail = ({ group, onClose }) => {
     }
   };
 
-  // 移除 updateGroupHosts 函数，因为不再需要更新主机组的hosts字段
-  const updateGroupHosts = async (hostList) => {
-    try {
-      // 将主机信息序列化为字符串格式
-      const hostsString = hostList.map(host => 
-        `${host.ip}:${host.port}@${host.username}:${host.password}`
-      ).join('\n');
-      const updatedGroup = {
-        ...groupData,
-        hosts: hostsString
-      };
-      await hostGroupAPI.update(group.id, updatedGroup);
-      setGroupData(updatedGroup);
-    } catch (error) {
-      console.error('Failed to update hosts:', error);
-      alert('更新主机列表失败');
-    }
-  };
+  // updateGroupHosts 函数已移除，因为现在主机数据单独存储在数据库中
 
   return (
     <>

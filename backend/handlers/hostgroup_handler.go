@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 	"runme-backend/database"
 	"runme-backend/models"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +17,7 @@ import (
 func GetHostGroups(c *gin.Context) {
 	rows, err := database.DB.Query("SELECT id, name, created_at, updated_at FROM host_groups")
 	if err != nil {
+		log.Printf("Failed to query host groups: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -22,13 +26,36 @@ func GetHostGroups(c *gin.Context) {
 	var hostGroups []models.HostGroup
 	for rows.Next() {
 		var hg models.HostGroup
-		err := rows.Scan(&hg.ID, &hg.Name, &hg.CreatedAt, &hg.UpdatedAt)
+		var createdAt, updatedAt string // 使用string类型暂时接收时间
+
+		err := rows.Scan(&hg.ID, &hg.Name, &createdAt, &updatedAt)
 		if err != nil {
+			log.Printf("Failed to scan host group row: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+
+		// 解析时间字符串
+		if parsedTime, err := time.Parse("2006-01-02 15:04:05", createdAt); err == nil {
+			hg.CreatedAt = parsedTime
+		} else if parsedTime, err := time.Parse(time.RFC3339, createdAt); err == nil {
+			hg.CreatedAt = parsedTime
+		} else {
+			hg.CreatedAt = time.Now() // 默认当前时间
+		}
+
+		if parsedTime, err := time.Parse("2006-01-02 15:04:05", updatedAt); err == nil {
+			hg.UpdatedAt = parsedTime
+		} else if parsedTime, err := time.Parse(time.RFC3339, updatedAt); err == nil {
+			hg.UpdatedAt = parsedTime
+		} else {
+			hg.UpdatedAt = time.Now() // 默认当前时间
+		}
+
 		hostGroups = append(hostGroups, hg)
 	}
+
+	log.Printf("Successfully fetched %d host groups", len(hostGroups))
 	c.JSON(http.StatusOK, gin.H{"data": hostGroups})
 }
 
@@ -48,7 +75,12 @@ func CreateHostGroup(c *gin.Context) {
 		hg.Name, hg.CreatedAt, hg.UpdatedAt,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Printf("Failed to create host group: %v", err)
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "主机组名称已存在"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("数据库操作失败: %v", err)})
+		}
 		return
 	}
 

@@ -180,7 +180,14 @@ const HostMonitoring = () => {
       {/* 端口单独一行 */}
       {host.ports && host.ports.length > 0 && (
         <div>
-          <span className="text-xs text-gray-300 mb-2 block">端口:</span>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-gray-300">端口:</span>
+            {host.ports.length > 5 && (
+              <span className="text-xs text-blue-400 font-medium">
+                共{host.ports.length}个
+              </span>
+            )}
+          </div>
           <div 
             className="overflow-x-auto"
             style={{
@@ -190,11 +197,16 @@ const HostMonitoring = () => {
             }}
           >
             <div className="flex gap-1 min-w-max pl-0">
-              {host.ports.map(port => (
+              {host.ports.slice(0, 8).map(port => (
                 <span key={port} className="text-xs bg-background-secondary text-foreground-secondary px-2 py-1 rounded whitespace-nowrap">
                   {port}
                 </span>
               ))}
+              {host.ports.length > 8 && (
+                <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded whitespace-nowrap font-medium">
+                  +{host.ports.length - 8}
+                </span>
+              )}
             </div>
           </div>
         </div>

@@ -17,6 +17,8 @@ const HostGroups = () => {
   const [deletingGroup, setDeletingGroup] = useState(null);
   // 新增：用于存储主机数量的状态
   const [hostCounts, setHostCounts] = useState({});
+  // 新增：用于存储主机详情的状态，支持IP搜索
+  const [hostsData, setHostsData] = useState({});
   const [formData, setFormData] = useState({
     name: ''
   });
@@ -34,17 +36,22 @@ const HostGroups = () => {
       const validGroups = Array.isArray(groups) ? groups : [];
       setHostGroups(validGroups);
       
-      // 获取每个主机组的主机数量
+      // 获取每个主机组的主机数量和详情
       const counts = {};
+      const hostsDetails = {};
       for (const group of validGroups) {
         try {
           const hostResponse = await hostGroupAPI.getHosts(group.id);
-          counts[group.id] = hostResponse.data?.data?.length || 0;
+          const hosts = hostResponse.data?.data || [];
+          counts[group.id] = hosts.length;
+          hostsDetails[group.id] = hosts;
         } catch (error) {
           counts[group.id] = 0;
+          hostsDetails[group.id] = [];
         }
       }
       setHostCounts(counts);
+      setHostsData(hostsDetails);
     } catch (error) {
       console.error('Failed to fetch host groups:', error);
       // 确保在错误情况下也设置为空数组
@@ -120,11 +127,24 @@ const HostGroups = () => {
     fetchHostGroups(); // 刷新主机组列表
   };
 
-  // 修复 filter 调用，添加安全检查
-  const filteredGroups = Array.isArray(hostGroups) ? hostGroups.filter(group => 
-    group.name && group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (group.hosts && group.hosts.toLowerCase().includes(searchTerm.toLowerCase()))
-  ) : [];
+  // 修复 filter 调用，添加安全检查，支持按主机组名称和IP搜索
+  const filteredGroups = Array.isArray(hostGroups) ? hostGroups.filter(group => {
+    // 如果没有搜索词，显示所有主机组
+    if (!searchTerm.trim()) {
+      return true;
+    }
+    
+    // 按主机组名称搜索
+    const nameMatch = group.name && group.name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // 按主机IP搜索（仅在有主机数据时进行）
+    const hosts = hostsData[group.id] || [];
+    const ipMatch = hosts.length > 0 && hosts.some(host => 
+      host.ip && host.ip.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    return nameMatch || ipMatch;
+  }) : [];
 
   if (loading) {
     return (
@@ -186,7 +206,12 @@ const HostGroups = () => {
               </thead>
               <tbody className="divide-y divide-border">
                 {filteredGroups.map((group) => (
-                  <tr key={group.id} className="hover:bg-background-secondary transition-colors">
+                  <tr 
+                    key={group.id} 
+                    className="hover:bg-background-secondary transition-colors cursor-pointer"
+                    onDoubleClick={() => openDetail(group)}
+                    title="双击查看详情"
+                  >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <Server size={16} className="text-primary" />
@@ -197,7 +222,10 @@ const HostGroups = () => {
                     <td className="px-6 py-4 text-center">
                       <button 
                         className="inline-flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/20"
-                        onClick={() => openDetail(group)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDetail(group);
+                        }}
                         title="查看详情"
                       >
                         <Eye size={14} />
@@ -207,7 +235,10 @@ const HostGroups = () => {
                     <td className="px-6 py-4 text-center">
                       <button 
                         className="inline-flex items-center gap-1 px-3 py-1 text-sm text-green-600 hover:text-green-800 hover:bg-green-50 rounded-lg transition-colors dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20"
-                        onClick={() => handleEdit(group)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(group);
+                        }}
                         title="编辑"
                       >
                         <Edit size={14} />
@@ -217,7 +248,10 @@ const HostGroups = () => {
                     <td className="px-6 py-4 text-center">
                       <button 
                         className="inline-flex items-center gap-1 px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
-                        onClick={() => handleDelete(group)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(group);
+                        }}
                         title="删除"
                       >
                         <Trash2 size={14} />
