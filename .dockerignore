@@ -1,0 +1,48 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# Environment files
+.env*
+
+# Node modules (will be installed during build)
+frontend/node_modules
+frontend/.next
+
+# Go modules cache
+backend/vendor
+
+# Build artifacts
+frontend/build
+backend/main
+backend/runme-backend
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+backend/log/
+
+# Temporary files
+tmp/
+temp/
+
+# Database files
+*.db
+backend/runme.db
+
+# Start script (not needed in container)
+start.sh

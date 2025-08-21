@@ -125,6 +125,23 @@ func main() {
 			}
 		}
 	}
+
+	// 添加静态文件服务
+	r.Static("/static", "/app/frontend/static")
+	r.StaticFile("/favicon.svg", "/app/frontend/favicon.svg")
+	r.StaticFile("/manifest.json", "/app/frontend/manifest.json")
+
+	// 处理前端路由 - 对于所有非API路由，返回index.html（SPA支持）
+	r.NoRoute(func(c *gin.Context) {
+		// 如果是API路由，返回404
+		if len(c.Request.URL.Path) >= 4 && c.Request.URL.Path[:4] == "/api" {
+			c.JSON(404, gin.H{"error": "API endpoint not found"})
+			return
+		}
+		// 否则返回前端index.html
+		c.File("/app/frontend/index.html")
+	})
+
 	log.Println("Server starting on :20002")
 	r.Run(":20002")
 }
