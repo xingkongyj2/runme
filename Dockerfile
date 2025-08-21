@@ -25,7 +25,7 @@ ENV TZ=Asia/Shanghai
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # 创建应用目录
-RUN mkdir -p /app/frontend /app/backend
+RUN mkdir -p /app/frontend /app/backend /app/data
 
 # 设置工作目录
 WORKDIR /app
@@ -46,6 +46,9 @@ USER appuser
 
 # 暴露后端端口
 EXPOSE 20002
+
+# 声明数据卷用于数据库持久化
+VOLUME ["/app/data"]
 
 # 启动后端服务（后端将同时服务前端文件）
 CMD ["/app/backend/main"]

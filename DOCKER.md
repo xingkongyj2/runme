@@ -9,9 +9,17 @@ docker build -t runme .
 
 ### 运行容器
 ```bash
+# 基本运行
 docker run -d \
   --name runme-app \
   -p 20002:20002 \
+  runme
+
+# 带数据持久化运行（推荐）
+docker run -d \
+  --name runme-app \
+  -p 20002:20002 \
+  -v runme_data:/app/data \
   runme
 ```
 
@@ -27,6 +35,7 @@ docker run -d \
 - ✅ 单个端口(20002)提供完整服务
 - ✅ 支持前端SPA路由
 - ✅ 非root用户运行，更安全
+- ✅ SQLite数据库持久化支持
 
 ## 与旧版本的区别
 
@@ -42,7 +51,22 @@ docker run -d \
 - 配置简单
 - 单个端口
 
+## 数据持久化
+
+SQLite数据库存储在容器内的 `/app/data/runme.db`。为确保数据持久化：
+
+```bash
+# 创建命名卷
+docker volume create runme_data
+
+# 查看数据卷位置
+docker volume inspect runme_data
+
+# 备份数据库
+docker cp runme-app:/app/data/runme.db ./backup.db
+```
+
 ## 开发环境 vs 生产环境
 
 - **开发环境**: 使用 `./start.sh` 分别启动前后端
-- **生产环境**: 使用 Docker 单进程部署
+- **生产环境**: 使用 Docker 单进程部署，带数据持久化
