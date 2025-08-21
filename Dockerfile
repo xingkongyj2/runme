@@ -6,17 +6,17 @@ RUN npm ci --only=production
 COPY frontend/ .
 RUN npm run build
 
-# 后端构建阶段
-FROM golang:1.21-alpine AS backend-builder
+# 后端构建阶段 - 使用Debian基础镜像避免Alpine兼容性问题
+FROM golang:1.21-bullseye AS backend-builder
 
-# 安装CGO依赖
-RUN apk add --no-cache gcc musl-dev sqlite-dev
+# 安装SQLite开发库
+RUN apt-get update && apt-get install -y sqlite3 libsqlite3-dev && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/backend
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/ .
-RUN CGO_ENABLED=1 GOOS=linux go build -tags "sqlite_omit_load_extension" -o main .
+RUN CGO_ENABLED=1 go build -o main .
 
 # 最终运行阶段
 FROM alpine:3.19
