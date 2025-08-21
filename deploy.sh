@@ -45,24 +45,22 @@ if docker images --format 'table {{.Repository}}' | grep -q "^${PROJECT_NAME}$";
     docker rmi ${PROJECT_NAME} || true
 fi
 
-# 创建数据卷（如果不存在）
-if ! docker volume ls --format 'table {{.Name}}' | grep -q "^${VOLUME_NAME}$"; then
-    echo -e "${BLUE}📦 创建数据卷...${NC}"
-    docker volume create ${VOLUME_NAME}
-else
-    echo -e "${GREEN}✅ 数据卷已存在${NC}"
-fi
+# 注释：不再使用Docker volume，直接映射到本地目录
 
 # 构建Docker镜像
 echo -e "${BLUE}🏗️  构建 Docker 镜像...${NC}"
 docker build -t ${PROJECT_NAME} .
+
+# 创建本地数据目录
+mkdir -p ./runme-data
+echo -e "${GREEN}✅ 创建本地数据目录: ./runme-data${NC}"
 
 # 运行容器
 echo -e "${BLUE}🚢 启动容器...${NC}"
 docker run -d \
   --name ${CONTAINER_NAME} \
   -p ${PORT}:${PORT} \
-  -v ${VOLUME_NAME}:/app/data \
+  -v "$(pwd)/runme-data":/app/data \
   --restart unless-stopped \
   ${PROJECT_NAME}
 
@@ -90,7 +88,8 @@ if docker ps --format 'table {{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     echo -e "  查看容器日志: ${BLUE}docker logs ${CONTAINER_NAME}${NC}"
     echo -e "  停止容器: ${BLUE}docker stop ${CONTAINER_NAME}${NC}"
     echo -e "  重启容器: ${BLUE}docker restart ${CONTAINER_NAME}${NC}"
-    echo -e "  备份数据库: ${BLUE}docker cp ${CONTAINER_NAME}:/app/data/runme.db ./backup.db${NC}"
+    echo -e "  查看数据目录: ${BLUE}ls -la ./runme-data${NC}"
+    echo -e "  数据库路径: ${BLUE}./runme-data/runme.db${NC}"
     
 else
     echo -e "${RED}❌ 容器启动失败！${NC}"
