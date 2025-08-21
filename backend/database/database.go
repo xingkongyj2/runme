@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"log"
+	"os"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -13,6 +14,13 @@ var DB *sql.DB
 
 func InitDB() {
 	var err error
+
+	// 确保数据目录存在
+	dataDir := "/app/data"
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		log.Fatal("Failed to create data directory:", err)
+	}
+
 	DB, err = sql.Open("sqlite3", "/app/data/runme.db")
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)

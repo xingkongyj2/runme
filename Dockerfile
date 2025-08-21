@@ -48,6 +48,8 @@ RUN chmod +x /app/backend/main
 # 创建非root用户
 RUN adduser --disabled-password --shell /bin/sh --gecos "" appuser
 RUN chown -R appuser:appuser /app
+# 确保数据目录对appuser有写权限
+RUN mkdir -p /app/data && chown -R appuser:appuser /app/data
 USER appuser
 
 # 暴露后端端口
