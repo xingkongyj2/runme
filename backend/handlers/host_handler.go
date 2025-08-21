@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"database/sql"
+	"fmt"
+	"log"
 	"net/http"
 	"os/exec"
 	"runtime"
@@ -227,15 +229,20 @@ func PingHost(c *gin.Context) {
 		cmd = exec.Command("ping", "-c", "1", "-W", "3", host.IP)
 	}
 
+	log.Printf("Pinging host %s (ID: %d) with command: %v", host.IP, host.ID, cmd.Args)
+
 	output, err := cmd.CombinedOutput()
 	latency := time.Since(start).Milliseconds()
+
+	outputStr := strings.TrimSpace(string(output))
+	log.Printf("Ping result for %s: success=%v, latency=%dms, output=%s", host.IP, err == nil, latency, outputStr)
 
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
 			"data": gin.H{
 				"success": false,
 				"latency": nil,
-				"message": "Ping failed: " + strings.TrimSpace(string(output)),
+				"message": fmt.Sprintf("Ping failed (%s): %s", err.Error(), outputStr),
 			},
 		})
 		return
@@ -281,6 +288,7 @@ func PingHostsByGroup(c *gin.Context) {
 
 	// 对每个主机执行ping
 	results := make(map[string]interface{})
+	log.Printf("Starting batch ping for group %d with %d hosts", groupID, len(hosts))
 
 	for _, host := range hosts {
 		start := time.Now()
@@ -292,14 +300,19 @@ func PingHostsByGroup(c *gin.Context) {
 			cmd = exec.Command("ping", "-c", "1", "-W", "3", host.IP)
 		}
 
+		log.Printf("Pinging host %s (ID: %d) with command: %v", host.IP, host.ID, cmd.Args)
+
 		output, err := cmd.CombinedOutput()
 		latency := time.Since(start).Milliseconds()
+
+		outputStr := strings.TrimSpace(string(output))
+		log.Printf("Ping result for %s: success=%v, latency=%dms, output=%s", host.IP, err == nil, latency, outputStr)
 
 		if err != nil {
 			results[host.IP] = gin.H{
 				"success": false,
 				"latency": nil,
-				"message": "Ping failed: " + strings.TrimSpace(string(output)),
+				"message": fmt.Sprintf("Ping failed (%s): %s", err.Error(), outputStr),
 			}
 		} else {
 			results[host.IP] = gin.H{
