@@ -18,11 +18,13 @@ RUN go mod download
 COPY backend/ .
 RUN CGO_ENABLED=1 go build -o main .
 
-# 最终运行阶段
-FROM alpine:3.19
+# 最终运行阶段 - 使用Debian slim保持兼容性
+FROM debian:bullseye-slim
 
 # 安装必要的工具和SQLite运行时依赖
-RUN apk --no-cache add ca-certificates tzdata sqlite
+RUN apt-get update && \
+    apt-get install -y ca-certificates tzdata sqlite3 && \
+    rm -rf /var/lib/apt/lists/*
 
 # 设置时区为中国标准时间
 ENV TZ=Asia/Shanghai
