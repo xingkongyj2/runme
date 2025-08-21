@@ -128,17 +128,35 @@ func main() {
 
 	// 添加静态文件服务
 	r.Static("/static", "/app/frontend/static")
+	r.StaticFile("/favicon.ico", "/app/frontend/favicon.ico")
 	r.StaticFile("/favicon.svg", "/app/frontend/favicon.svg")
 	r.StaticFile("/manifest.json", "/app/frontend/manifest.json")
 
+	// 添加构建后的静态资源
+	r.Static("/assets", "/app/frontend/assets")
+
 	// 处理前端路由 - 对于所有非API路由，返回index.html（SPA支持）
 	r.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+
 		// 如果是API路由，返回404
-		if len(c.Request.URL.Path) >= 4 && c.Request.URL.Path[:4] == "/api" {
+		if len(path) >= 4 && path[:4] == "/api" {
 			c.JSON(404, gin.H{"error": "API endpoint not found"})
 			return
 		}
-		// 否则返回前端index.html
+
+		// 如果是静态资源请求，返回404
+		if len(path) >= 7 && path[:7] == "/static" ||
+			len(path) >= 7 && path[:7] == "/assets" ||
+			path == "/favicon.ico" ||
+			path == "/favicon.svg" ||
+			path == "/manifest.json" {
+			c.Status(404)
+			return
+		}
+
+		// 否则返回前端index.html（SPA路由支持）
+		c.Header("Content-Type", "text/html")
 		c.File("/app/frontend/index.html")
 	})
 

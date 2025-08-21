@@ -17,8 +17,9 @@ const TerminalComponent = ({ hostId, hostIP, onClose, fullscreen = false }) => {
   const connectWebSocket = () => {
     if (!hostId) return;
 
-    // 使用主机ID建立WebSocket连接
-    const wsUrl = `ws://localhost:20002/api/terminal/${hostId}`;
+    // 使用主机ID建立WebSocket连接 - 动态获取当前域名和协议
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/api/terminal/${hostId}`;
     
     websocket.current = new WebSocket(wsUrl);
 
