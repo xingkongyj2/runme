@@ -54,8 +54,9 @@ const HostGroups = () => {
       setHostsData(hostsDetails);
     } catch (error) {
       console.error('Failed to fetch host groups:', error);
-      // 确保在错误情况下也设置为空数组
-      setHostGroups([]);
+      // 不要清空主机组数据，只是不更新主机数量和详情
+      setHostCounts({});
+      setHostsData({});
     } finally {
       setLoading(false);
     }
