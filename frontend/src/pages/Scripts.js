@@ -41,8 +41,13 @@ const Scripts = () => {
   // 自动调整textarea高度的函数
   const adjustTextareaHeight = () => {
     if (textareaRef.current) {
+      // 重置高度以获取真实的scrollHeight
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+      // 获取内容实际高度
+      const scrollHeight = textareaRef.current.scrollHeight;
+      // 设置最小高度120px
+      const newHeight = Math.max(scrollHeight, 120);
+      textareaRef.current.style.height = newHeight + 'px';
     }
   };
 
@@ -342,8 +347,8 @@ const Scripts = () => {
             <label className="block text-sm font-medium text-foreground mb-2">脚本内容</label>
             <textarea
               ref={textareaRef}
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none font-mono"
-              style={{ minHeight: '120px', maxHeight: '400px' }}
+              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none font-mono overflow-hidden"
+              style={{ minHeight: '120px' }}
               value={formData.content}
               onChange={(e) => {
                 setFormData({...formData, content: e.target.value});

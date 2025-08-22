@@ -213,16 +213,12 @@ const HostMonitoring = () => {
       {/* 端口单独一行 */}
       {host.ports && host.ports.length > 0 && (
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-300">端口:</span>
-          </div>
-          
           <div 
-            className="cursor-pointer text-xs text-blue-400 hover:text-blue-300 transition-colors"
+            className="cursor-pointer text-xs text-gray-400 hover:text-gray-300 transition-colors"
             onMouseEnter={(e) => handlePortHover(host.ip, host.ports, e)}
             onMouseLeave={handlePortLeave}
           >
-            端口：共{host.ports.length}个
+            开放端口：共{host.ports.length}个
           </div>
         </div>
       )}
@@ -243,7 +239,7 @@ const HostMonitoring = () => {
           
           <div className="p-3">
             <div className="text-xs font-medium text-foreground mb-2">
-              端口列表 (共{host.ports.length}个)
+              开放端口列表 (共{host.ports.length}个)
             </div>
             <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
               {host.ports.map((port, index) => (
