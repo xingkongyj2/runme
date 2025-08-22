@@ -466,24 +466,22 @@ const HostGroupDetail = ({ group, onClose }) => {
 
           {/* 操作栏 - 固定不滚动 */}
           <div className="p-6 border-b border-border flex-shrink-0">
-            <div className="flex justify-center">
-              <div className="w-full max-w-5xl">
-                <div className="flex flex-wrap gap-3">
-                  <button 
-                    className="px-3 py-1.5 bg-black hover:bg-gray-900 text-white rounded-lg transition-colors flex items-center gap-2 text-sm"
-                    onClick={() => setShowAddModal(true)}
-                  >
-                    <Plus size={14} />
-                    添加主机
-                  </button>
-                  <button 
-                    className="px-3 py-1.5 bg-black hover:bg-gray-900 text-white rounded-lg transition-colors flex items-center gap-2 text-sm"
-                    onClick={() => setShowBatchModal(true)}
-                  >
-                    <Users size={14} />
-                    批量添加
-                  </button>
-                </div>
+            <div className="flex justify-end">
+              <div className="flex flex-wrap gap-3">
+                <button 
+                  className="px-3 py-1.5 bg-black hover:bg-gray-900 text-white rounded-lg transition-colors flex items-center gap-2 text-sm"
+                  onClick={() => setShowAddModal(true)}
+                >
+                  <Plus size={14} />
+                  添加主机
+                </button>
+                <button 
+                  className="px-3 py-1.5 bg-black hover:bg-gray-900 text-white rounded-lg transition-colors flex items-center gap-2 text-sm"
+                  onClick={() => setShowBatchModal(true)}
+                >
+                  <Users size={14} />
+                  批量添加
+                </button>
               </div>
             </div>
           </div>
@@ -535,14 +533,22 @@ const HostGroupDetail = ({ group, onClose }) => {
                         <td className="w-20 py-4 text-center">
                           {loadingPingHosts.has(host.ip) ? (
                             <div className="flex justify-center">
-                              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                              <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                             </div>
                           ) : showingResults && pingResults[host.ip] ? (
-                            pingResults[host.ip].success ? (
-                              <span className="text-green-500">{pingResults[host.ip].latency}ms</span>
-                            ) : (
-                              <span className="text-red-500">超时</span>
-                            )
+                            <div className="flex justify-center">
+                              {pingResults[host.ip].success ? (
+                                <div 
+                                  className="w-2 h-2 rounded-full bg-green-500 shadow-sm"
+                                  title={`${pingResults[host.ip].latency}ms`}
+                                ></div>
+                              ) : (
+                                <div 
+                                  className="w-2 h-2 rounded-full bg-red-500 shadow-sm"
+                                  title="超时"
+                                ></div>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-gray-500">-</span>
                           )}
@@ -550,23 +556,23 @@ const HostGroupDetail = ({ group, onClose }) => {
                         <td className="w-20 py-4 text-center">
                           {loadingSSHHosts.has(host.ip) ? (
                             <div className="flex justify-center">
-                              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                              <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                             </div>
                           ) : showingSSHResults && sshResults[host.ip] ? (
                             <div className="flex justify-center">
                               {sshResults[host.ip].success ? (
                                 <div 
-                                  className="w-3 h-3 rounded-full bg-green-500 shadow-sm"
+                                  className="w-2 h-2 rounded-full bg-green-500 shadow-sm"
                                   title="已连通"
                                 ></div>
                               ) : sshResults[host.ip].message === 'timeout' ? (
                                 <div 
-                                  className="w-3 h-3 rounded-full bg-yellow-500 shadow-sm"
+                                  className="w-2 h-2 rounded-full bg-yellow-500 shadow-sm"
                                   title="超时"
                                 ></div>
                               ) : (
                                 <div 
-                                  className="w-3 h-3 rounded-full bg-red-500 shadow-sm"
+                                  className="w-2 h-2 rounded-full bg-red-500 shadow-sm"
                                   title="未连通"
                                 ></div>
                               )}

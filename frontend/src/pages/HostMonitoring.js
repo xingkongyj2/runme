@@ -9,7 +9,40 @@ const HostMonitoring = () => {
   const [loading, setLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState({}); // 跟踪每个分组的数据加载状态
   const [initialDataLoaded, setInitialDataLoaded] = useState(false); // 跟踪初始数据是否已加载
+  
+  // 悬浮端口提示状态
+  const [hoveredPortHost, setHoveredPortHost] = useState(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
 
+  // 处理端口悬浮
+  const handlePortHover = (hostIp, ports, event) => {
+    if (ports.length <= 5) return; // 少于等于5个端口不需要悬浮提示
+    
+    const rect = event.currentTarget.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    let top = rect.bottom + 8;
+    let left = rect.left;
+    
+    // 简单的边界检测和调整
+    if (left + 300 > viewportWidth - 16) {
+      left = viewportWidth - 316;
+    }
+    if (left < 16) {
+      left = 16;
+    }
+    if (top + 200 > viewportHeight - 16) {
+      top = rect.top - 208;
+    }
+    
+    setTooltipPosition({ top, left });
+    setHoveredPortHost(hostIp);
+  };
+
+  const handlePortLeave = () => {
+    setHoveredPortHost(null);
+  };
 
   // 获取主机分组
   const fetchHostGroups = useCallback(async () => {
@@ -182,31 +215,57 @@ const HostMonitoring = () => {
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-gray-300">端口:</span>
+            <span className="text-xs text-blue-400 font-medium">
+              共{host.ports.length}个
+            </span>
+          </div>
+          
+          <div 
+            className="flex gap-1 flex-wrap"
+            onMouseEnter={(e) => handlePortHover(host.ip, host.ports, e)}
+            onMouseLeave={handlePortLeave}
+          >
+            {host.ports.slice(0, 5).map((port, index) => (
+              <span key={`${port}-${index}`} className="text-xs bg-background-secondary text-foreground-secondary px-2 py-1 rounded whitespace-nowrap">
+                {port}
+              </span>
+            ))}
             {host.ports.length > 5 && (
-              <span className="text-xs text-blue-400 font-medium">
-                共{host.ports.length}个
+              <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded whitespace-nowrap font-medium cursor-pointer hover:bg-blue-700 transition-colors">
+                ...更多
               </span>
             )}
           </div>
-          <div 
-            className="overflow-x-auto"
-            style={{
-              msOverflowStyle: 'none',
-              scrollbarWidth: 'none',
-              WebkitScrollbar: { display: 'none' }
-            }}
-          >
-            <div className="flex gap-1 min-w-max pl-0">
-              {host.ports.slice(0, 8).map(port => (
-                <span key={port} className="text-xs bg-background-secondary text-foreground-secondary px-2 py-1 rounded whitespace-nowrap">
+        </div>
+      )}
+      
+      {/* 悬浮端口提示 */}
+      {hoveredPortHost === host.ip && host.ports && host.ports.length > 5 && (
+        <div 
+          className="fixed z-50 bg-gray-900 border border-gray-700 rounded-lg shadow-lg max-w-md"
+          style={{
+            top: `${tooltipPosition.top}px`,
+            left: `${tooltipPosition.left}px`,
+          }}
+          onMouseEnter={() => setHoveredPortHost(host.ip)}
+          onMouseLeave={handlePortLeave}
+        >
+          {/* 箭头指示器 */}
+          <div className="absolute -top-2 left-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent border-b-gray-900"></div>
+          
+          <div className="p-3">
+            <div className="text-xs font-medium text-gray-300 mb-2">
+              端口列表 (共{host.ports.length}个)
+            </div>
+            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
+              {host.ports.map((port, index) => (
+                <span
+                  key={`tooltip-${port}-${index}`}
+                  className="text-xs bg-gray-800 text-gray-200 px-2 py-1 rounded text-center"
+                >
                   {port}
                 </span>
               ))}
-              {host.ports.length > 8 && (
-                <span className="text-xs bg-blue-600 text-white px-2 py-1 rounded whitespace-nowrap font-medium">
-                  +{host.ports.length - 8}
-                </span>
-              )}
             </div>
           </div>
         </div>
