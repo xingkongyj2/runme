@@ -128,18 +128,6 @@ const HostGroupDetail = ({ group, onClose }) => {
       setShowingResults(true);
       setLoadingPingHosts(new Set()); // 清除加载状态
       
-      // 显示ping结果摘要
-      const successCount = Object.values(results).filter(r => r.success).length;
-      const totalCount = Object.keys(results).length;
-      
-      if (successCount === totalCount) {
-        showSuccess(`Ping完成！所有 ${totalCount} 台主机都响应正常`);
-      } else if (successCount === 0) {
-        showError(`Ping完成！所有 ${totalCount} 台主机都无响应`);
-      } else {
-        showWarning(`Ping完成！${successCount}/${totalCount} 台主机响应正常`);
-      }
-      
       // 5秒后清除延迟数据显示
       setTimeout(() => {
         setShowingResults(false);
@@ -148,7 +136,6 @@ const HostGroupDetail = ({ group, onClose }) => {
       
     } catch (error) {
       console.error('Ping测试失败:', error);
-      showError('Ping测试失败，请重试');
       setPinging(false);
       setLoadingPingHosts(new Set()); // 清除加载状态
     }
@@ -173,28 +160,6 @@ const HostGroupDetail = ({ group, onClose }) => {
       setShowingSSHResults(true);
       setLoadingSSHHosts(new Set()); // 清除加载状态
       
-      // 显示SSH测试结果摘要
-      const successCount = Object.values(results).filter(r => r.success).length;
-      const timeoutCount = Object.values(results).filter(r => !r.success && r.message === 'timeout').length;
-      const failedCount = Object.values(results).filter(r => !r.success && r.message !== 'timeout').length;
-      const totalCount = Object.keys(results).length;
-      
-      if (successCount === totalCount) {
-        showSuccess(`SSH测试完成！所有 ${totalCount} 台主机都连接正常`);
-      } else if (successCount === 0) {
-        if (timeoutCount > 0) {
-          showWarning(`SSH测试完成！${timeoutCount} 台超时，${failedCount} 台连接失败`);
-        } else {
-          showError(`SSH测试完成！所有 ${totalCount} 台主机都连接失败`);
-        }
-      } else {
-        const statusParts = [];
-        if (successCount > 0) statusParts.push(`${successCount}台连通`);
-        if (timeoutCount > 0) statusParts.push(`${timeoutCount}台超时`);
-        if (failedCount > 0) statusParts.push(`${failedCount}台失败`);
-        showWarning(`SSH测试完成！${statusParts.join('，')}`);
-      }
-      
       // 5秒后清除结果显示
       setTimeout(() => {
         setShowingSSHResults(false);
@@ -203,7 +168,6 @@ const HostGroupDetail = ({ group, onClose }) => {
       
     } catch (error) {
       console.error('SSH测试失败:', error);
-      showError('SSH测试失败，请重试');
       setSSHTesting(false);
       setLoadingSSHHosts(new Set()); // 清除加载状态
     }
@@ -538,10 +502,9 @@ const HostGroupDetail = ({ group, onClose }) => {
                           ) : showingResults && pingResults[host.ip] ? (
                             <div className="flex justify-center">
                               {pingResults[host.ip].success ? (
-                                <div 
-                                  className="w-2 h-2 rounded-full bg-green-500 shadow-sm"
-                                  title={`${pingResults[host.ip].latency}ms`}
-                                ></div>
+                                <span className="text-xs text-green-600 font-medium">
+                                  {pingResults[host.ip].latency}ms
+                                </span>
                               ) : (
                                 <div 
                                   className="w-2 h-2 rounded-full bg-red-500 shadow-sm"
@@ -686,13 +649,13 @@ const HostGroupDetail = ({ group, onClose }) => {
       >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">主机IP地址</label>
+            <label className="block text-sm font-medium text-foreground mb-2">IP地址</label>
             <input
               type="text"
               className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               value={newHost.ip}
               onChange={(e) => setNewHost({...newHost, ip: e.target.value})}
-              placeholder="请输入主机IP地址"
+              placeholder=""
               required
             />
           </div>
@@ -728,7 +691,7 @@ const HostGroupDetail = ({ group, onClose }) => {
               className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               value={newHost.password}
               onChange={(e) => setNewHost({...newHost, password: e.target.value})}
-              placeholder="请输入密码"
+              placeholder=""
               required
             />
           </div>
@@ -764,11 +727,10 @@ const HostGroupDetail = ({ group, onClose }) => {
       >
         <div className="space-y-4">
           <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-            <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">每行输入一个主机信息，格式：IP 端口 用户名 密码，例如：</p>
+            <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">格式：IP 端口 用户名 密码</p>
             <div className="font-mono text-sm bg-blue-100 dark:bg-blue-900/40 p-2 rounded border text-blue-900 dark:text-blue-100">
               192.168.1.100 22 root password123<br/>
-              192.168.1.101 22 admin mypassword<br/>
-              192.168.1.102 2222 user secretpass
+              192.168.1.101 22 root password123
             </div>
           </div>
           
@@ -778,7 +740,7 @@ const HostGroupDetail = ({ group, onClose }) => {
               rows="8"
               value={batchHosts}
               onChange={(e) => setBatchHosts(e.target.value)}
-              placeholder="请按格式输入：IP 端口 用户名 密码，每行一个"
+              placeholder=""
             />
           </div>
 
@@ -819,7 +781,7 @@ const HostGroupDetail = ({ group, onClose }) => {
               onClick={handleBatchAdd}
               disabled={batchLoading}
             >
-              {batchLoading ? '添加中...' : '确认添加'}
+              {batchLoading ? '添加中...' : '添加'}
             </button>
           </div>
         </div>

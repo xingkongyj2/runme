@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Edit2, Trash2, PlayCircle, FileText, ScrollText, AlertTriangle, Sparkles, Loader2 } from 'lucide-react';
 import { scriptAPI, hostGroupAPI } from '../services/api';
 import Modal from '../components/Modal';
@@ -35,10 +35,26 @@ const Scripts = () => {
     type: 'warning'
   });
 
+  // 添加ref用于textarea自动调整大小
+  const textareaRef = useRef(null);
+
+  // 自动调整textarea高度的函数
+  const adjustTextareaHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  };
+
   useEffect(() => {
     fetchScripts();
     fetchHostGroups();
   }, []);
+
+  // 当内容变化时调整textarea高度
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [formData.content]);
 
   const fetchScripts = async () => {
     try {
@@ -103,6 +119,8 @@ const Scripts = () => {
       host_group_id: script.host_group_id.toString()
     });
     setShowModal(true);
+    // 延迟调整高度，确保modal和textarea已渲染
+    setTimeout(adjustTextareaHeight, 100);
   };
 
   const handleDelete = async (id) => {
@@ -182,6 +200,8 @@ const Scripts = () => {
       content: suggestion.content
     });
     setShowAISuggestionModal(false);
+    // 延迟调整高度
+    setTimeout(adjustTextareaHeight, 50);
   };
 
   if (loading) {
@@ -205,6 +225,8 @@ const Scripts = () => {
             setEditingScript(null);
             setFormData({ name: '', content: '', host_group_id: '' });
             setShowModal(true);
+            // 延迟调整高度，确保modal和textarea已渲染
+            setTimeout(adjustTextareaHeight, 100);
           }}
         >
           <Plus size={16} />
@@ -319,11 +341,16 @@ const Scripts = () => {
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">脚本内容</label>
             <textarea
+              ref={textareaRef}
               className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none font-mono"
-              rows="10"
+              style={{ minHeight: '120px', maxHeight: '400px' }}
               value={formData.content}
-              onChange={(e) => setFormData({...formData, content: e.target.value})}
-              placeholder=""
+              onChange={(e) => {
+                setFormData({...formData, content: e.target.value});
+                setTimeout(adjustTextareaHeight, 0);
+              }}
+              onInput={adjustTextareaHeight}
+              placeholder="请输入Shell脚本内容..."
               required
             />
           </div>

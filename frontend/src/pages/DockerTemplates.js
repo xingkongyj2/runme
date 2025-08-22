@@ -205,7 +205,7 @@ const DockerTemplates = () => {
           onClick={() => setShowModal(true)}
         >
           <Plus size={16} />
-          新建模板
+          新建Docker模板
         </button>
       </div>
 
@@ -315,9 +315,6 @@ const DockerTemplates = () => {
               rows={10}
               required
             />
-            <p className="text-xs text-foreground-secondary mt-1">
-              请输入完整的Docker命令，如：docker run、docker pull等
-            </p>
           </div>
           
           <div className="flex justify-end gap-3 pt-4">
@@ -331,13 +328,13 @@ const DockerTemplates = () => {
                   docker_command: ''
                 });
               }}
-              className="px-4 py-2 bg-background-secondary text-foreground border border-border rounded-lg hover:bg-background-secondary/80 transition-colors"
+              className="btn-secondary"
             >
               取消
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              className="btn-primary"
             >
               {editingTemplate ? '更新' : '创建'}
             </button>
@@ -365,13 +362,13 @@ const DockerTemplates = () => {
                 setShowDeleteModal(false);
                 setDeletingTemplate(null);
               }}
-              className="px-4 py-2 bg-background-secondary text-foreground border border-border rounded-lg hover:bg-background-secondary/80 transition-colors"
+              className="btn-secondary"
             >
               取消
             </button>
             <button
               onClick={handleDeleteTemplate}
-              className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
             >
               删除
             </button>
@@ -400,7 +397,7 @@ const DockerTemplates = () => {
                   navigator.clipboard.writeText(selectedTemplate.docker_command);
                   showSuccess('Docker命令已复制到剪贴板');
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-background-secondary text-foreground border border-border rounded-lg hover:bg-background-secondary/80 transition-colors"
+                className="btn-secondary flex items-center gap-2"
               >
                 <Copy className="w-4 h-4" />
                 复制命令
@@ -466,7 +463,7 @@ const DockerTemplates = () => {
                 setSelectedHost('');
                 setExecutionResult('');
               }}
-              className="px-4 py-2 bg-background-secondary text-foreground border border-border rounded-lg hover:bg-background-secondary/80 transition-colors"
+              className="btn-secondary"
             >
               取消
             </button>
