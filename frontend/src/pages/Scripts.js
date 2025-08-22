@@ -67,6 +67,8 @@ const Scripts = () => {
       setScripts(response.data || []);
     } catch (error) {
       console.error('Failed to fetch scripts:', error);
+      showError('获取脚本列表失败');
+      setScripts([]);
     } finally {
       setLoading(false);
     }
@@ -81,6 +83,7 @@ const Scripts = () => {
       setHostGroups(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to fetch host groups:', error);
+      showError('获取主机组列表失败');
       setHostGroups([]);
     }
   };
