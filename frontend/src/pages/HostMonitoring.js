@@ -136,8 +136,8 @@ const HostMonitoring = () => {
   }, [hostGroups, fetchAllGroupsMonitoringData]);
 
   const renderSystemCard = (host) => (
-    <div key={host.ip} className="bg-card rounded-lg p-3 border border-gray-600 shadow-sm h-64">
-      <div className="flex items-center justify-between mb-4">
+    <div key={host.ip} className="bg-card rounded-lg p-3 border border-gray-600 shadow-sm h-64 flex flex-col">
+      <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-white truncate">{host.ip}</h3>
         <div className={`w-2 h-2 rounded-full ${
           host.status === 'online' ? 'bg-green-500' : 'bg-red-500'
@@ -145,7 +145,7 @@ const HostMonitoring = () => {
       </div>
       
       {/* CPU和内存一行 */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-2 gap-3 flex-1 flex items-center">
         <div className="space-y-1">
           <div className="flex items-center gap-1">
             <Cpu className="w-3 h-3 text-gray-400" />
@@ -181,7 +181,7 @@ const HostMonitoring = () => {
       </div>
       
       {/* 磁盘和网络一行 */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-2 gap-3 flex-1 flex items-center">
         <div className="space-y-1">
           <div className="flex items-center gap-1">
             <HardDrive className="w-3 h-3 text-yellow-400" />
@@ -211,8 +211,8 @@ const HostMonitoring = () => {
       </div>
       
       {/* 端口单独一行 */}
-      {host.ports && host.ports.length > 0 && (
-        <div>
+      <div className="flex-1 flex items-center">
+        {host.ports && host.ports.length > 0 ? (
           <div 
             className="cursor-pointer text-xs text-gray-400 hover:text-gray-300 transition-colors"
             onMouseEnter={(e) => handlePortHover(host.ip, host.ports, e)}
@@ -220,8 +220,12 @@ const HostMonitoring = () => {
           >
             开放端口：共{host.ports.length}个
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="text-xs text-gray-500">
+            暂无开放端口
+          </div>
+        )}
+      </div>
       
       {/* 悬浮端口提示 */}
       {hoveredPortHost === host.ip && host.ports && host.ports.length > 0 && (

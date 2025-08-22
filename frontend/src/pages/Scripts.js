@@ -7,7 +7,6 @@ import AISuggestionModal from '../components/AISuggestionModal';
 import CustomSelect from '../components/CustomSelect';
 import ToastContainer from '../components/ToastContainer';
 import useToast from '../hooks/useToast';
-import { Highlight, themes } from 'prism-react-renderer';
 
 const Scripts = () => {
   // 正确使用 useToast hook
@@ -49,12 +48,6 @@ const Scripts = () => {
       // 设置最小高度120px
       const newHeight = Math.max(scrollHeight, 120);
       textareaRef.current.style.height = newHeight + 'px';
-      
-      // 同步调整语法高亮层的高度
-      const preElement = textareaRef.current.nextElementSibling;
-      if (preElement && preElement.tagName === 'PRE') {
-        preElement.style.height = newHeight + 'px';
-      }
     }
   };
 
@@ -352,56 +345,19 @@ const Scripts = () => {
           
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">脚本内容</label>
-            <div className="relative border border-border rounded-lg bg-background focus-within:ring-2 focus-within:ring-primary focus-within:border-transparent">
-              <Highlight
-                theme={themes.nightOwl}
-                code={formData.content || ''}
-                language="bash"
-              >
-                {({ className, style, tokens, getLineProps, getTokenProps }) => (
-                  <div className="relative">
-                    <textarea
-                      ref={textareaRef}
-                      className="absolute inset-0 w-full px-3 py-2 bg-transparent text-transparent caret-white resize-none font-mono overflow-hidden focus:outline-none z-10"
-                      style={{ minHeight: '120px' }}
-                      value={formData.content}
-                      onChange={(e) => {
-                        setFormData({...formData, content: e.target.value});
-                        setTimeout(adjustTextareaHeight, 0);
-                      }}
-                      onInput={adjustTextareaHeight}
-                      placeholder=""
-                      required
-                      spellCheck={false}
-                    />
-                    <pre
-                      className="w-full px-3 py-2 font-mono pointer-events-none overflow-hidden rounded-lg"
-                      style={{
-                        background: 'var(--background)',
-                        color: 'var(--foreground)',
-                        minHeight: '120px',
-                        margin: 0
-                      }}
-                    >
-                      {formData.content ? (
-                        tokens.map((line, i) => (
-                          <div key={i} {...getLineProps({ line, key: i })}>
-                            {line.map((token, key) => (
-                              <span key={key} {...getTokenProps({ token, key })} />
-                            ))}
-                            {line.length === 0 && <br />}
-                          </div>
-                        ))
-                      ) : (
-                        <span style={{ color: 'var(--foreground-secondary)' }}>
-                          请输入Shell脚本内容...
-                        </span>
-                      )}
-                    </pre>
-                  </div>
-                )}
-              </Highlight>
-            </div>
+            <textarea
+              ref={textareaRef}
+              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-foreground-secondary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none font-mono overflow-hidden"
+              style={{ minHeight: '120px' }}
+              value={formData.content}
+              onChange={(e) => {
+                setFormData({...formData, content: e.target.value});
+                setTimeout(adjustTextareaHeight, 0);
+              }}
+              onInput={adjustTextareaHeight}
+              placeholder="请输入Shell脚本内容..."
+              required
+            />
           </div>
           
           <div className="flex justify-end gap-3 pt-4">
