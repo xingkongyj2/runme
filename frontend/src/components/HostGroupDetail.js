@@ -66,6 +66,9 @@ const HostGroupDetail = ({ group, onClose }) => {
   const [showingSSHResults, setShowingSSHResults] = useState(false);
   // 新增状态：控制延迟数据显示
   const [showingResults, setShowingResults] = useState(false);
+  // 加载状态：记录正在测试的主机
+  const [loadingPingHosts, setLoadingPingHosts] = useState(new Set());
+  const [loadingSSHHosts, setLoadingSSHHosts] = useState(new Set());
   // 批量添加相关状态
   const [batchLoading, setBatchLoading] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
@@ -111,6 +114,10 @@ const HostGroupDetail = ({ group, onClose }) => {
     setPinging(true);
     setShowingResults(false);
     
+    // 设置所有主机为加载状态
+    const hostIPs = new Set(hosts.map(host => host.ip));
+    setLoadingPingHosts(hostIPs);
+    
     try {
       // 调用后端API进行批量ping测试
       const response = await hostGroupAPI.pingHosts(group.id);
@@ -119,6 +126,7 @@ const HostGroupDetail = ({ group, onClose }) => {
       setPingResults(results);
       setPinging(false);
       setShowingResults(true);
+      setLoadingPingHosts(new Set()); // 清除加载状态
       
       // 显示ping结果摘要
       const successCount = Object.values(results).filter(r => r.success).length;
@@ -142,6 +150,7 @@ const HostGroupDetail = ({ group, onClose }) => {
       console.error('Ping测试失败:', error);
       showError('Ping测试失败，请重试');
       setPinging(false);
+      setLoadingPingHosts(new Set()); // 清除加载状态
     }
   };
 
@@ -149,6 +158,10 @@ const HostGroupDetail = ({ group, onClose }) => {
   const handleSSHTestAll = async () => {
     setSSHTesting(true);
     setShowingSSHResults(false);
+    
+    // 设置所有主机为加载状态
+    const hostIPs = new Set(hosts.map(host => host.ip));
+    setLoadingSSHHosts(hostIPs);
     
     try {
       // 调用后端API进行批量SSH测试
@@ -158,17 +171,28 @@ const HostGroupDetail = ({ group, onClose }) => {
       setSSHResults(results);
       setSSHTesting(false);
       setShowingSSHResults(true);
+      setLoadingSSHHosts(new Set()); // 清除加载状态
       
       // 显示SSH测试结果摘要
       const successCount = Object.values(results).filter(r => r.success).length;
+      const timeoutCount = Object.values(results).filter(r => !r.success && r.message === 'timeout').length;
+      const failedCount = Object.values(results).filter(r => !r.success && r.message !== 'timeout').length;
       const totalCount = Object.keys(results).length;
       
       if (successCount === totalCount) {
         showSuccess(`SSH测试完成！所有 ${totalCount} 台主机都连接正常`);
       } else if (successCount === 0) {
-        showError(`SSH测试完成！所有 ${totalCount} 台主机都连接失败`);
+        if (timeoutCount > 0) {
+          showWarning(`SSH测试完成！${timeoutCount} 台超时，${failedCount} 台连接失败`);
+        } else {
+          showError(`SSH测试完成！所有 ${totalCount} 台主机都连接失败`);
+        }
       } else {
-        showWarning(`SSH测试完成！${successCount}/${totalCount} 台主机连接正常`);
+        const statusParts = [];
+        if (successCount > 0) statusParts.push(`${successCount}台连通`);
+        if (timeoutCount > 0) statusParts.push(`${timeoutCount}台超时`);
+        if (failedCount > 0) statusParts.push(`${failedCount}台失败`);
+        showWarning(`SSH测试完成！${statusParts.join('，')}`);
       }
       
       // 5秒后清除结果显示
@@ -181,6 +205,7 @@ const HostGroupDetail = ({ group, onClose }) => {
       console.error('SSH测试失败:', error);
       showError('SSH测试失败，请重试');
       setSSHTesting(false);
+      setLoadingSSHHosts(new Set()); // 清除加载状态
     }
   };
 
@@ -508,7 +533,11 @@ const HostGroupDetail = ({ group, onClose }) => {
                           </button>
                         </td>
                         <td className="w-20 py-4 text-center">
-                          {showingResults && pingResults[host.ip] ? (
+                          {loadingPingHosts.has(host.ip) ? (
+                            <div className="flex justify-center">
+                              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                          ) : showingResults && pingResults[host.ip] ? (
                             pingResults[host.ip].success ? (
                               <span className="text-green-500">{pingResults[host.ip].latency}ms</span>
                             ) : (
@@ -519,12 +548,29 @@ const HostGroupDetail = ({ group, onClose }) => {
                           )}
                         </td>
                         <td className="w-20 py-4 text-center">
-                          {showingSSHResults && sshResults[host.ip] ? (
-                            sshResults[host.ip].success ? (
-                              <span className="text-green-500 font-semibold">连通</span>
-                            ) : (
-                              <span className="text-red-500 font-semibold" title={sshResults[host.ip].message}>断开</span>
-                            )
+                          {loadingSSHHosts.has(host.ip) ? (
+                            <div className="flex justify-center">
+                              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                          ) : showingSSHResults && sshResults[host.ip] ? (
+                            <div className="flex justify-center">
+                              {sshResults[host.ip].success ? (
+                                <div 
+                                  className="w-3 h-3 rounded-full bg-green-500 shadow-sm"
+                                  title="已连通"
+                                ></div>
+                              ) : sshResults[host.ip].message === 'timeout' ? (
+                                <div 
+                                  className="w-3 h-3 rounded-full bg-yellow-500 shadow-sm"
+                                  title="超时"
+                                ></div>
+                              ) : (
+                                <div 
+                                  className="w-3 h-3 rounded-full bg-red-500 shadow-sm"
+                                  title="未连通"
+                                ></div>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-gray-500">-</span>
                           )}

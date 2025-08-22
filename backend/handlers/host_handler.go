@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -237,7 +238,14 @@ func PingHost(c *gin.Context) {
 	latency := time.Since(start).Milliseconds()
 
 	outputStr := strings.TrimSpace(string(output))
-	log.Printf("Ping result for %s: success=%v, latency=%dms, output=%s", host.IP, err == nil, latency, outputStr)
+
+	// 详细的错误日志
+	if err != nil {
+		log.Printf("Ping FAILED for %s: error=%v, latency=%dms, output='%s'",
+			host.IP, err, latency, outputStr)
+	} else {
+		log.Printf("Ping SUCCESS for %s: latency=%dms, output='%s'", host.IP, latency, outputStr)
+	}
 
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{
@@ -308,7 +316,14 @@ func PingHostsByGroup(c *gin.Context) {
 		latency := time.Since(start).Milliseconds()
 
 		outputStr := strings.TrimSpace(string(output))
-		log.Printf("Ping result for %s: success=%v, latency=%dms, output=%s", host.IP, err == nil, latency, outputStr)
+
+		// 详细的错误日志
+		if err != nil {
+			log.Printf("Ping FAILED for %s: error=%v, latency=%dms, output='%s'",
+				host.IP, err, latency, outputStr)
+		} else {
+			log.Printf("Ping SUCCESS for %s: latency=%dms, output='%s'", host.IP, latency, outputStr)
+		}
 
 		if err != nil {
 			results[host.IP] = gin.H{
@@ -427,39 +442,102 @@ func testSSHConnect(host string, port int, username, password string) (bool, str
 			ssh.Password(password),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // 注意：生产环境应该验证主机密钥
-		Timeout:         5 * time.Second,             // 5秒超时
+		Timeout:         3 * time.Second,             // 3秒超时，更快响应
 	}
 
 	// 构建连接地址
 	address := fmt.Sprintf("%s:%d", host, port)
 
-	// 尝试建立SSH连接
-	client, err := ssh.Dial("tcp", address, config)
-	if err != nil {
-		// 检查是否是网络连接错误
-		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-			return false, "Connection timeout"
+	// 使用context控制整体超时
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// 创建一个channel来接收结果
+	resultChan := make(chan struct {
+		success bool
+		message string
+	}, 1)
+
+	go func() {
+		// 尝试建立SSH连接
+		client, err := ssh.Dial("tcp", address, config)
+		if err != nil {
+			// 检查是否是网络连接错误
+			if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
+				resultChan <- struct {
+					success bool
+					message string
+				}{false, "timeout"}
+				return
+			}
+			if strings.Contains(err.Error(), "connection refused") {
+				resultChan <- struct {
+					success bool
+					message string
+				}{false, "refused"}
+				return
+			}
+			if strings.Contains(err.Error(), "no route to host") || strings.Contains(err.Error(), "network unreachable") {
+				resultChan <- struct {
+					success bool
+					message string
+				}{false, "unreachable"}
+				return
+			}
+			if strings.Contains(err.Error(), "authentication failed") {
+				resultChan <- struct {
+					success bool
+					message string
+				}{false, "auth_failed"}
+				return
+			}
+			resultChan <- struct {
+				success bool
+				message string
+			}{false, "failed"}
+			return
 		}
-		return false, fmt.Sprintf("SSH connection failed: %s", err.Error())
-	}
-	defer client.Close()
+		defer client.Close()
 
-	// 尝试执行一个简单的命令来确认连接正常
-	session, err := client.NewSession()
-	if err != nil {
-		return false, fmt.Sprintf("Failed to create session: %s", err.Error())
-	}
-	defer session.Close()
+		// 尝试执行一个简单的命令来确认连接正常
+		session, err := client.NewSession()
+		if err != nil {
+			resultChan <- struct {
+				success bool
+				message string
+			}{false, "session_failed"}
+			return
+		}
+		defer session.Close()
 
-	// 执行echo命令测试
-	output, err := session.Output("echo 'SSH connection test'")
-	if err != nil {
-		return false, fmt.Sprintf("Command execution failed: %s", err.Error())
-	}
+		// 执行echo命令测试
+		output, err := session.Output("echo 'test'")
+		if err != nil {
+			resultChan <- struct {
+				success bool
+				message string
+			}{false, "command_failed"}
+			return
+		}
 
-	if strings.Contains(string(output), "SSH connection test") {
-		return true, "SSH connection successful"
-	}
+		if strings.Contains(string(output), "test") {
+			resultChan <- struct {
+				success bool
+				message string
+			}{true, "connected"}
+		} else {
+			resultChan <- struct {
+				success bool
+				message string
+			}{false, "test_failed"}
+		}
+	}()
 
-	return false, "SSH connection established but command test failed"
+	// 等待结果或超时
+	select {
+	case result := <-resultChan:
+		return result.success, result.message
+	case <-ctx.Done():
+		return false, "timeout"
+	}
 }
