@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -34,11 +35,20 @@ func GetScripts(c *gin.Context) {
 	var scripts []ScriptWithHostGroup
 	for rows.Next() {
 		var s ScriptWithHostGroup
-		err := rows.Scan(&s.ID, &s.Name, &s.Content, &s.HostGroupID, &s.CreatedAt, &s.UpdatedAt, &s.HostGroupName)
+		var hostGroupName sql.NullString
+		err := rows.Scan(&s.ID, &s.Name, &s.Content, &s.HostGroupID, &s.CreatedAt, &s.UpdatedAt, &hostGroupName)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+
+		// 处理可能为NULL的host_group_name
+		if hostGroupName.Valid {
+			s.HostGroupName = hostGroupName.String
+		} else {
+			s.HostGroupName = "未知主机组"
+		}
+
 		scripts = append(scripts, s)
 	}
 
