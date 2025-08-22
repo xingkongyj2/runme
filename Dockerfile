@@ -23,7 +23,7 @@ FROM debian:bullseye-slim
 
 # 安装必要的工具和SQLite运行时依赖
 RUN apt-get update && \
-    apt-get install -y ca-certificates tzdata sqlite3 && \
+    apt-get install -y ca-certificates tzdata sqlite3 iputils-ping && \
     rm -rf /var/lib/apt/lists/*
 
 # 设置时区为中国标准时间

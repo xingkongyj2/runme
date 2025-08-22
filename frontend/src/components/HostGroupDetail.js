@@ -504,7 +504,7 @@ const HostGroupDetail = ({ group, onClose }) => {
                       <th className="w-32 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">主机IP</th>
                       <th className="w-24 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">系统</th>
                       <th className="w-20 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">延迟</th>
-                      <th className="w-20 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">联通性</th>
+                      <th className="w-20 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">SSH连通</th>
                       <th className="w-32 py-3 text-center text-sm font-medium text-foreground-secondary uppercase tracking-wider">操作</th>
                     </tr>
                   </thead>

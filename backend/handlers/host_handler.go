@@ -226,10 +226,45 @@ func PingHost(c *gin.Context) {
 	start := time.Now()
 
 	var cmd *exec.Cmd
+	var pingCmd string
+
+	// 尝试查找ping命令的完整路径
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("ping", "-n", "1", "-w", "3000", host.IP)
+		pingCmd = "ping"
 	} else {
-		cmd = exec.Command("ping", "-c", "1", "-W", "3", host.IP)
+		// 在Linux/Unix系统中，尝试常见的ping路径
+		possiblePaths := []string{
+			"ping",          // 系统PATH中
+			"/bin/ping",     // 标准路径
+			"/usr/bin/ping", // 用户程序路径
+			"/sbin/ping",    // 系统管理员路径
+		}
+
+		for _, path := range possiblePaths {
+			if _, err := exec.LookPath(path); err == nil {
+				pingCmd = path
+				break
+			}
+		}
+
+		if pingCmd == "" {
+			// 如果找不到ping命令，返回错误和安装建议
+			suggestion := getPingInstallSuggestion()
+			c.JSON(http.StatusOK, gin.H{
+				"data": gin.H{
+					"success": false,
+					"latency": nil,
+					"message": suggestion,
+				},
+			})
+			return
+		}
+	}
+
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command(pingCmd, "-n", "1", "-w", "3000", host.IP)
+	} else {
+		cmd = exec.Command(pingCmd, "-c", "1", "-W", "3", host.IP)
 	}
 
 	log.Printf("Pinging host %s (ID: %d) with command: %v", host.IP, host.ID, cmd.Args)
@@ -300,14 +335,49 @@ func PingHostsByGroup(c *gin.Context) {
 	results := make(map[string]interface{})
 	log.Printf("Starting batch ping for group %d with %d hosts", groupID, len(hosts))
 
+	// 预先查找ping命令路径
+	var pingCmd string
+	if runtime.GOOS == "windows" {
+		pingCmd = "ping"
+	} else {
+		// 在Linux/Unix系统中，尝试常见的ping路径
+		possiblePaths := []string{
+			"ping",          // 系统PATH中
+			"/bin/ping",     // 标准路径
+			"/usr/bin/ping", // 用户程序路径
+			"/sbin/ping",    // 系统管理员路径
+		}
+
+		for _, path := range possiblePaths {
+			if _, err := exec.LookPath(path); err == nil {
+				pingCmd = path
+				break
+			}
+		}
+
+		if pingCmd == "" {
+			// 如果找不到ping命令，为所有主机返回错误和安装建议
+			suggestion := getPingInstallSuggestion()
+			for _, host := range hosts {
+				results[host.IP] = gin.H{
+					"success": false,
+					"latency": nil,
+					"message": suggestion,
+				}
+			}
+			c.JSON(http.StatusOK, gin.H{"data": results})
+			return
+		}
+	}
+
 	for _, host := range hosts {
 		start := time.Now()
 
 		var cmd *exec.Cmd
 		if runtime.GOOS == "windows" {
-			cmd = exec.Command("ping", "-n", "1", "-w", "3000", host.IP)
+			cmd = exec.Command(pingCmd, "-n", "1", "-w", "3000", host.IP)
 		} else {
-			cmd = exec.Command("ping", "-c", "1", "-W", "3", host.IP)
+			cmd = exec.Command(pingCmd, "-c", "1", "-W", "3", host.IP)
 		}
 
 		log.Printf("Pinging host %s (ID: %d) with command: %v", host.IP, host.ID, cmd.Args)
@@ -540,4 +610,22 @@ func testSSHConnect(host string, port int, username, password string) (bool, str
 	case <-ctx.Done():
 		return false, "timeout"
 	}
+}
+
+// getPingInstallSuggestion 获取ping安装建议
+func getPingInstallSuggestion() string {
+	// 检测Linux发行版并给出安装建议
+	if _, err := exec.LookPath("apt-get"); err == nil {
+		return "ping command not found. Try: sudo apt-get install iputils-ping"
+	}
+	if _, err := exec.LookPath("yum"); err == nil {
+		return "ping command not found. Try: sudo yum install iputils"
+	}
+	if _, err := exec.LookPath("dnf"); err == nil {
+		return "ping command not found. Try: sudo dnf install iputils"
+	}
+	if _, err := exec.LookPath("zypper"); err == nil {
+		return "ping command not found. Try: sudo zypper install iputils"
+	}
+	return "ping command not found on system. Please install ping utility."
 }
